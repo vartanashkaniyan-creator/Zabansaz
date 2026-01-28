@@ -1,45 +1,20 @@
-
 {
   "metadata": {
     "lesson_id": "en_lesson_003",
-    "title": "غذا و رستوران",
-    "subtitle": "سفارش غذا در رستوران",
+    "title": "درس سوم آزمایشی",
+    "subtitle": "تست سیستم",
     "language": "english",
     "target_language": "farsi",
     "level": "beginner",
     "difficulty": 1,
-    "estimated_time": 20,
-    "version": "1.0.0",
-    "prerequisites": ["en_lesson_001", "en_lesson_002"],
-    "learning_objectives": [
-      "سفارش غذا",
-      "پرسش از منو",
-      "درخواست صورتحساب"
-    ]
+    "estimated_time": 15,
+    "learning_objectives": ["تست سیستم بارگذاری"]
   },
   "content": {
-    "introduction": {
-      "text": "در این درس با سفارش غذا آشنا می‌شوید.",
-      "audio_url": "audio/en_003/intro.mp3"
-    },
-    "dialogs": [
-      {
-        "title": "سفارش غذا",
-        "lines": [
-          {"character": "مشتری", "english": "Can I see the menu?", "farsi": "میتوانم منو را ببینم؟"},
-          {"character": "پیشخدمت", "english": "Here you are.", "farsi": "بفرمایید."},
-          {"character": "مشتری", "english": "I'll have pizza.", "farsi": "پیتزا می‌خواهم."},
-          {"character": "پیشخدمت", "english": "Anything to drink?", "farsi": "نوشیدنی هم میل دارید؟"}
-        ]
-      }
-    ],
     "vocabulary": {
-      "title": "واژگان غذا",
       "words": [
-        {"english": "menu", "farsi": "منو"},
-        {"english": "order", "farsi": "سفارش"},
-        {"english": "bill", "farsi": "صورتحساب"},
-        {"english": "restaurant", "farsi": "رستوران"}
+        {"english": "test", "farsi": "تست"},
+        {"english": "system", "farsi": "سیستم"}
       ]
     }
   }
