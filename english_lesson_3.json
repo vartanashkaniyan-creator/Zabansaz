@@ -3,7 +3,7 @@
   "metadata": {
     "lesson_id": "en_lesson_003",
     "title": "غذا و رستوران",
-    "subtitle": "سفارش غذا و مکالمه در رستوران",
+    "subtitle": "سفارش غذا در رستوران",
     "language": "english",
     "target_language": "farsi",
     "level": "beginner",
@@ -12,36 +12,34 @@
     "version": "1.0.0",
     "prerequisites": ["en_lesson_001", "en_lesson_002"],
     "learning_objectives": [
-      "سفارش غذا در رستوران",
-      "پرسش درباره منو",
-      "گفتگو با پیشخدمت"
+      "سفارش غذا",
+      "پرسش از منو",
+      "درخواست صورتحساب"
     ]
   },
   "content": {
     "introduction": {
-      "text": "در این درس با عبارات مربوط به غذا و رستوران آشنا می‌شوید.",
-      "audio_url": "audio/lessons/en_003/intro.mp3"
+      "text": "در این درس با سفارش غذا آشنا می‌شوید.",
+      "audio_url": "audio/en_003/intro.mp3"
     },
     "dialogs": [
       {
         "title": "سفارش غذا",
         "lines": [
-          {"character": "Customer", "english": "I would like to order.", "farsi": "می‌خواهم سفارش بدهم."},
-          {"character": "Waiter", "english": "What would you like?", "farsi": "چه میل دارید؟"},
-          {"character": "Customer", "english": "Chicken pasta, please.", "farsi": "پاستا مرغ، لطفاً."},
-          {"character": "Waiter", "english": "Anything to drink?", "farsi": "نوشیدنی هم میل دارید؟"}
+          {"character": "مشتری", "english": "Can I see the menu?", "farsi": "میتوانم منو را ببینم؟"},
+          {"character": "پیشخدمت", "english": "Here you are.", "farsi": "بفرمایید."},
+          {"character": "مشتری", "english": "I'll have pizza.", "farsi": "پیتزا می‌خواهم."},
+          {"character": "پیشخدمت", "english": "Anything to drink?", "farsi": "نوشیدنی هم میل دارید؟"}
         ]
       }
     ],
     "vocabulary": {
       "title": "واژگان غذا",
       "words": [
-        {"english": "restaurant", "farsi": "رستوران"},
         {"english": "menu", "farsi": "منو"},
         {"english": "order", "farsi": "سفارش"},
-        {"english": "food", "farsi": "غذا"},
-        {"english": "drink", "farsi": "نوشیدنی"},
-        {"english": "bill", "farsi": "صورتحساب"}
+        {"english": "bill", "farsi": "صورتحساب"},
+        {"english": "restaurant", "farsi": "رستوران"}
       ]
     }
   }
