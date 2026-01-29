@@ -1,1 +1,93 @@
 
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyperLang</title>
+    <!-- نقطه بارگذاری استایل‌ها (آینده) -->
+</head>
+<body>
+    <!-- نقطه اصلی رندر برنامه -->
+    <div id="root"></div>
+
+    <script type="module">
+        // هسته اصلی برنامه - سازمان‌دهنده فایل‌ها
+        const HyperLang = (() => {
+            const modules = {};
+            const core = {};
+
+            // 1. بارگذاری هوشمند فایل‌های CORE (اولویت اول)
+            const loadCore = async () => {
+                console.log('بارگذاری هسته...');
+                try {
+                    // این فایل‌ها باید اول بارگذاری شوند
+                    const coreFiles = ['CORE_state.js', 'CORE_db.js', 'CORE_router.js'];
+                    for (const file of coreFiles) {
+                        const module = await import(`./${file}`);
+                        const name = file.replace('.js', '').replace('CORE_', '');
+                        core[name] = module.default || module;
+                        console.log(`✅ هسته ${name} بارگذاری شد`);
+                    }
+                } catch (e) {
+                    console.warn('⚠️ برخی فایل‌های CORE هنوز کدنویسی نشده‌اند. ادامه بارگذاری...');
+                }
+                return core;
+            };
+
+            // 2. بارگذاری ماژول‌ها (بعد از هسته)
+            const loadModules = async () => {
+                console.log('بارگذاری ماژول‌ها...');
+                // بارگذاری ماژول‌های حیاتی (مثلاً Auth)
+                const moduleFiles = ['MODULES_auth.js'];
+                for (const file of moduleFiles) {
+                    try {
+                        const module = await import(`./${file}`);
+                        const name = file.replace('.js', '').replace('MODULES_', '');
+                        modules[name] = module.default || module;
+                        if (modules[name] && typeof modules[name].init === 'function') {
+                            modules[name].init(core); // مقداردهی اولیه با هسته
+                        }
+                        console.log(`✅ ماژول ${name} بارگذاری شد`);
+                    } catch (e) {
+                        console.warn(`⏸️ ماژول ${file} هنوز آماده نیست`);
+                    }
+                }
+                return modules;
+            };
+
+            // 3. بارگذاری UI (آخرین مرحله)
+            const loadUI = async () => {
+                console.log('بارگذاری رابط کاربری...');
+                // بارگذاری صفحه اصلی
+                try {
+                    const PageHome = await import('./page_home.js');
+                    const app = PageHome.default || PageHome;
+                    if (typeof app.render === 'function') {
+                        document.getElementById('root').innerHTML = app.render();
+                        console.log('✅ رابط کاربری بارگذاری شد');
+                    }
+                } catch (e) {
+                    console.warn('⏸️ صفحه اصلی هنوز آماده نیست');
+                    document.getElementById('root').innerHTML = '<p>برنامه در حال راه‌اندازی...</p>';
+                }
+            };
+
+            // 4. تابع شروع برنامه
+            const start = async () => {
+                console.log('🚀 شروع HyperLang...');
+                await loadCore();
+                await loadModules();
+                await loadUI();
+                console.log('🎉 برنامه آماده است!');
+            };
+
+            // API عمومی
+            return { start, modules, core };
+        })();
+
+        // شروع برنامه
+        HyperLang.start();
+    </script>
+</body>
+</html>
