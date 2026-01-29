@@ -1,1 +1,115 @@
 
+{
+  "id": "en_beginner_01",
+  "language": "en",
+  "level": "beginner",
+  "order": 1,
+  "title": "Greetings and Introductions",
+  "description": "Learn basic greetings and how to introduce yourself",
+  "estimatedTime": 15,
+  "difficulty": 1,
+  
+  "sections": [
+    {
+      "type": "dialogue",
+      "title": "Basic Conversation",
+      "content": [
+        {
+          "speaker": "Ali",
+          "text": "Hello! My name is Ali. What's your name?",
+          "translation": "سلام! اسم من علی است. اسم شما چیست؟",
+          "audio": "sounds/hello_ali.mp3"
+        },
+        {
+          "speaker": "Sarah",
+          "text": "Hi Ali! I'm Sarah. Nice to meet you.",
+          "translation": "سلام علی! من سارا هستم. از آشنایی با شما خوشبختم.",
+          "audio": "sounds/hi_sarah.mp3"
+        }
+      ]
+    },
+    
+    {
+      "type": "vocabulary",
+      "title": "Key Vocabulary",
+      "content": [
+        {
+          "word": "Hello",
+          "translation": "سلام",
+          "example": "Hello everyone!",
+          "phonetic": "/həˈloʊ/",
+          "category": "greeting"
+        },
+        {
+          "word": "Name",
+          "translation": "اسم",
+          "example": "My name is...",
+          "phonetic": "/neɪm/",
+          "category": "noun"
+        },
+        {
+          "word": "Nice to meet you",
+          "translation": "از آشنایی با شما خوشبختم",
+          "example": "Nice to meet you, Mr. Johnson.",
+          "phonetic": "/naɪs tə mit ju/",
+          "category": "phrase"
+        }
+      ]
+    },
+    
+    {
+      "type": "grammar",
+      "title": "Grammar Point: 'To Be'",
+      "content": {
+        "rule": "Use 'am', 'is', or 'are' with pronouns",
+        "examples": [
+          "I am Ali",
+          "You are Sarah",
+          "He is a teacher",
+          "She is a student"
+        ],
+        "explanation": "فعل 'to be' برای معرفی خود یا دیگران استفاده می‌شود"
+      }
+    }
+  ],
+  
+  "exercises": [
+    {
+      "type": "multiple_choice",
+      "question": "How do you say 'سلام' in English?",
+      "options": ["Goodbye", "Hello", "Thank you", "Please"],
+      "correctAnswer": 1,
+      "explanation": "The word 'Hello' means سلام in English."
+    },
+    
+    {
+      "type": "fill_in_blank",
+      "sentence": "My name ___ Ali.",
+      "correctAnswer": "is",
+      "hint": "Use the correct form of 'to be'",
+      "explanation": "با اسامی مفرد از 'is' استفاده می‌کنیم"
+    },
+    
+    {
+      "type": "matching",
+      "pairs": [
+        {"item": "Hello", "match": "سلام"},
+        {"item": "Name", "match": "اسم"},
+        {"item": "Nice to meet you", "match": "از آشنایی خوشبختم"}
+      ]
+    }
+  ],
+  
+  "completionCriteria": {
+    "minScore": 70,
+    "requiredExercises": 2
+  },
+  
+  "metadata": {
+    "author": "HyperLang Team",
+    "createdAt": "2024-01-29",
+    "updatedAt": "2024-01-29",
+    "tags": ["beginner", "greetings", "introductions"],
+    "prerequisites": []
+  }
+}
