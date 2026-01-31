@@ -1,1 +1,37 @@
-
+<!DOCTYPE html>
+<html>
+<head>
+    <title>تست HyperLang</title>
+</head>
+<body>
+    <h1>بررسی فایل‌های هسته</h1>
+    
+    <!-- همین ترتیب لود کن -->
+    <script src="utils.js"></script>
+    <script src="api.js"></script>
+    <script src="auth.js"></script>
+    <script src="router.js"></script>
+    <script src="state.js"></script>
+    <script src="database.js"></script>
+    
+    <script>
+    // ۳ ثانیه صبر کن سپس چک کن
+    setTimeout(() => {
+        console.log('بررسی شروع شد...');
+        
+        // اگر این پیام‌ها را دیدی، مشکل از نام کلاس‌هاست
+        if (typeof Database === 'undefined') console.log('⚠️ Database کلاس پیدا نشد');
+        if (typeof State === 'undefined') console.log('⚠️ State کلاس پیدا نشد');
+        if (typeof Router === 'undefined') console.log('⚠️ Router کلاس پیدا نشد');
+        if (typeof Auth === 'undefined') console.log('⚠️ Auth کلاس پیدا نشد');
+        
+        // اگر این پیام را دیدی، همه چیز اوکیه
+        if (typeof Database !== 'undefined' && 
+            typeof State !== 'undefined') {
+            console.log('✅ همه فایل‌ها سالم هستند');
+            document.body.innerHTML += '<h2 style="color:green;">آماده برای ساخت صفحه اصلی</h2>';
+        }
+    }, 3000);
+    </script>
+</body>
+</html>
