@@ -3,469 +3,714 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HyperLang - تست سیستم</title>
+    <title>Vakamova - آموزش زبان ۱۲ زبانه</title>
+    <script type="module">
+        // ==================== PRINCIPLE 1: DEPENDENCY INJECTION ====================
+        class AppContext {
+            constructor() {
+                this._services = new Map();
+                this._config = new Map();
+                this._eventSystem = null;
+            }
+            
+            register(name, provider, dependencies = []) {
+                if (this._services.has(name)) throw new Error(`Service ${name} already registered`);
+                
+                const resolvedDeps = dependencies.map(dep => {
+                    if (!this._services.has(dep)) throw new Error(`Dependency ${dep} not found for ${name}`);
+                    return this._services.get(dep);
+                });
+                
+                const instance = typeof provider === 'function' 
+                    ? provider(...resolvedDeps) 
+                    : provider;
+                
+                this._services.set(name, instance);
+                this._emit('service:registered', { name, instance });
+                return instance;
+            }
+            
+            resolve(name) {
+                if (!this._services.has(name)) throw new Error(`Service ${name} not found`);
+                return this._services.get(name);
+            }
+            
+            setConfig(key, value) {
+                this._config.set(key, value);
+                this._emit('config:updated', { key, value });
+            }
+            
+            getConfig(key) {
+                return this._config.get(key);
+            }
+            
+            setEventSystem(eventSystem) {
+                this._eventSystem = eventSystem;
+            }
+            
+            _emit(event, data) {
+                if (this._eventSystem) {
+                    this._eventSystem.emit(event, data);
+                }
+            }
+        }
+        
+        // ==================== PRINCIPLE 2: INTERFACE CONTRACT ====================
+        const AppInterfaces = {
+            Router: class RouterInterface {
+                constructor() { if (new.target === RouterInterface) throw new Error('Cannot instantiate interface'); }
+                navigate(path) {}
+                getCurrentPath() {}
+                onRouteChange(callback) {}
+            },
+            StateManager: class StateInterface {
+                constructor() { if (new.target === StateInterface) throw new Error('Cannot instantiate interface'); }
+                set(path, value) {}
+                get(path) {}
+                subscribe(path, callback) {}
+            },
+            View: class ViewInterface {
+                constructor() { if (new.target === ViewInterface) throw new Error('Cannot instantiate interface'); }
+                render() { return document.createElement('div'); }
+                cleanup() {}
+            }
+        };
+        
+        // ==================== PRINCIPLE 3: EVENT-DRIVEN CORE ====================
+        class AppEventSystem {
+            constructor() {
+                this._events = new Map();
+                this._middlewares = [];
+            }
+            
+            on(event, handler, options = {}) {
+                if (!this._events.has(event)) this._events.set(event, []);
+                const handlerId = Symbol('handler');
+                this._events.get(event).push({ handler, id: handlerId, once: options.once || false });
+                return () => this.off(event, handlerId);
+            }
+            
+            off(event, identifier) {
+                if (!this._events.has(event)) return;
+                const handlers = this._events.get(event);
+                this._events.set(event, handlers.filter(h => 
+                    typeof identifier === 'function' ? h.handler !== identifier : h.id !== identifier
+                ));
+            }
+            
+            emit(event, data) {
+                if (!this._events.has(event)) return;
+                
+                const eventObj = { type: event, data, timestamp: Date.now(), canceled: false };
+                
+                // Run middlewares
+                for (const middleware of this._middlewares) {
+                    const result = middleware(eventObj);
+                    if (result === false || eventObj.canceled) return;
+                }
+                
+                const handlers = this._events.get(event);
+                for (let i = 0; i < handlers.length; i++) {
+                    const { handler, once } = handlers[i];
+                    try {
+                        handler(eventObj.data, eventObj);
+                        if (once) handlers.splice(i, 1), i--;
+                    } catch (error) {
+                        console.error(`Event handler error for ${event}:`, error);
+                    }
+                }
+            }
+            
+            use(middleware) {
+                this._middlewares.push(middleware);
+                return () => this._middlewares = this._middlewares.filter(m => m !== middleware);
+            }
+        }
+        
+        // ==================== PRINCIPLE 4: CENTRALIZED CONFIGURATION ====================
+        const AppConfig = {
+            // Core
+            appName: 'Vakamova',
+            appVersion: '1.0.0',
+            environment: 'production',
+            
+            // Paths
+            apiBaseUrl: window.location.origin + '/api',
+            assetsPath: '/assets',
+            corePath: '/core',
+            modulesPath: '/modules',
+            pagesPath: '/pages',
+            
+            // Features
+            features: {
+                auth: true,
+                multiLanguage: true,
+                offlineMode: true,
+                analytics: true,
+                pwa: false
+            },
+            
+            // Languages
+            languages: ['fa', 'en', 'ar', 'tr', 'de', 'es', 'fr', 'ru', 'zh', 'ja', 'ko', 'it'],
+            defaultLanguage: 'fa',
+            
+            // Routing
+            routes: {
+                home: '/',
+                login: '/login',
+                register: '/register',
+                dashboard: '/dashboard',
+                lesson: '/lesson/:id',
+                profile: '/profile'
+            },
+            
+            // UI
+            theme: {
+                primaryColor: '#1a237e',
+                secondaryColor: '#311b92',
+                accentColor: '#00b0ff',
+                textColor: '#ffffff',
+                backgroundColor: '#0d0d1a',
+                direction: 'rtl'
+            },
+            
+            // Validation
+            validation: {
+                emailRegex: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                passwordMinLength: 8,
+                usernameMinLength: 3
+            },
+            
+            // Localization
+            i18n: {
+                'fa': { dir: 'rtl', name: 'فارسی' },
+                'en': { dir: 'ltr', name: 'English' },
+                'ar': { dir: 'rtl', name: 'العربية' }
+            }
+        };
+        
+        // ==================== APPLICATION BOOTSTRAP ====================
+        class VakamovaApp {
+            constructor() {
+                this.context = new AppContext();
+                this.eventSystem = new AppEventSystem();
+                this.isInitialized = false;
+                this.pendingOperations = [];
+            }
+            
+            async init() {
+                if (this.isInitialized) return;
+                
+                try {
+                    // 1. Set up event system
+                    this.context.setEventSystem(this.eventSystem);
+                    
+                    // 2. Load configuration
+                    this._loadConfiguration();
+                    
+                    // 3. Initialize core services
+                    await this._initCoreServices();
+                    
+                    // 4. Initialize modules
+                    await this._initModules();
+                    
+                    // 5. Set up error handling
+                    this._setupErrorHandling();
+                    
+                    // 6. Start application
+                    this._startApplication();
+                    
+                    this.isInitialized = true;
+                    this.eventSystem.emit('app:initialized', { timestamp: Date.now() });
+                    
+                    console.log(`%c${AppConfig.appName} v${AppConfig.appVersion} initialized successfully!`, 
+                        'color: #00ff00; font-weight: bold; font-size: 14px;');
+                    
+                } catch (error) {
+                    console.error('Application initialization failed:', error);
+                    this.eventSystem.emit('app:error', { error, phase: 'initialization' });
+                    this._showFatalError(error);
+                }
+            }
+            
+            _loadConfiguration() {
+                // Load from localStorage if available
+                const savedConfig = localStorage.getItem('vakamova_config');
+                if (savedConfig) {
+                    try {
+                        const parsed = JSON.parse(savedConfig);
+                        Object.assign(AppConfig, parsed);
+                    } catch (e) {
+                        console.warn('Failed to parse saved config:', e);
+                    }
+                }
+                
+                // Apply theme configuration
+                this._applyTheme(AppConfig.theme);
+                
+                // Register config in context
+                this.context.setConfig('app', AppConfig);
+            }
+            
+            _applyTheme(theme) {
+                const style = document.createElement('style');
+                style.textContent = `
+                    :root {
+                        --primary-color: ${theme.primaryColor};
+                        --secondary-color: ${theme.secondaryColor};
+                        --accent-color: ${theme.accentColor};
+                        --text-color: ${theme.textColor};
+                        --bg-color: ${theme.backgroundColor};
+                        --direction: ${theme.direction};
+                    }
+                    
+                    body {
+                        background-color: var(--bg-color);
+                        color: var(--text-color);
+                        direction: var(--direction);
+                        margin: 0;
+                        padding: 0;
+                        min-height: 100vh;
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        overflow-x: hidden;
+                    }
+                    
+                    #app {
+                        width: 100%;
+                        min-height: 100vh;
+                        transition: opacity 0.3s ease;
+                    }
+                    
+                    .loading-overlay {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        z-index: 9999;
+                        transition: opacity 0.5s ease;
+                    }
+                    
+                    .loading-spinner {
+                        width: 50px;
+                        height: 50px;
+                        border: 4px solid rgba(255, 255, 255, 0.3);
+                        border-radius: 50%;
+                        border-top-color: var(--accent-color);
+                        animation: spin 1s ease-in-out infinite;
+                    }
+                    
+                    .loading-text {
+                        margin-top: 20px;
+                        color: white;
+                        font-size: 1.2rem;
+                    }
+                    
+                    @keyframes spin {
+                        to { transform: rotate(360deg); }
+                    }
+                    
+                    .error-screen {
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: #1a1a1a;
+                        color: #ff5252;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        padding: 20px;
+                        text-align: center;
+                        z-index: 10000;
+                    }
+                    
+                    .error-screen h1 {
+                        font-size: 2rem;
+                        margin-bottom: 20px;
+                    }
+                    
+                    .error-screen button {
+                        margin-top: 20px;
+                        padding: 10px 20px;
+                        background: var(--accent-color);
+                        color: white;
+                        border: none;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        font-size: 1rem;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            async _initCoreServices() {
+                // Show loading overlay
+                this._showLoading();
+                
+                // Dynamically load core modules
+                const coreModules = [
+                    { name: 'EventBus', path: `${AppConfig.corePath}/event_bus.js` },
+                    { name: 'StateManager', path: `${AppConfig.corePath}/state_manager.js` },
+                    { name: 'Router', path: `${AppConfig.corePath}/router.js` },
+                    { name: 'ApiClient', path: `${AppConfig.corePath}/api_client.js` },
+                    { name: 'Database', path: `${AppConfig.corePath}/database.js` }
+                ];
+                
+                for (const module of coreModules) {
+                    try {
+                        const moduleExport = await import(module.path);
+                        const instance = moduleExport.default || moduleExport;
+                        this.context.register(module.name.toLowerCase(), instance);
+                        this.eventSystem.emit('core:loaded', { module: module.name });
+                    } catch (error) {
+                        console.warn(`Failed to load ${module.name}:`, error);
+                        // Create fallback implementation
+                        this._createFallbackService(module.name);
+                    }
+                }
+                
+                // Wait a bit for smoother UX
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            _createFallbackService(serviceName) {
+                const fallbacks = {
+                    'EventBus': () => this.eventSystem,
+                    'StateManager': () => ({
+                        set: (path, value) => localStorage.setItem(`state_${path}`, JSON.stringify(value)),
+                        get: (path) => {
+                            const item = localStorage.getItem(`state_${path}`);
+                            return item ? JSON.parse(item) : null;
+                        },
+                        subscribe: () => () => {}
+                    }),
+                    'Router': () => ({
+                        navigate: (path) => { window.location.hash = path; },
+                        getCurrentPath: () => window.location.hash.substring(1) || '/',
+                        onRouteChange: (callback) => {
+                            window.addEventListener('hashchange', () => callback(window.location.hash.substring(1)));
+                            return () => window.removeEventListener('hashchange', callback);
+                        }
+                    })
+                };
+                
+                if (fallbacks[serviceName]) {
+                    this.context.register(serviceName.toLowerCase(), fallbacks[serviceName]());
+                    console.warn(`Using fallback for ${serviceName}`);
+                }
+            }
+            
+            async _initModules() {
+                if (!AppConfig.features.auth) return;
+                
+                try {
+                    // Load auth module
+                    const authModule = await import(`${AppConfig.modulesPath}/auth/auth_manager.js`);
+                    const authInstance = authModule.default || authModule;
+                    this.context.register('auth', authInstance);
+                    
+                    // Initialize auth
+                    const auth = this.context.resolve('auth');
+                    if (typeof auth.init === 'function') {
+                        await auth.init(this.context);
+                    }
+                    
+                    this.eventSystem.emit('module:loaded', { name: 'auth' });
+                    
+                } catch (error) {
+                    console.warn('Auth module failed to load:', error);
+                }
+            }
+            
+            _setupErrorHandling() {
+                // Global error handler
+                window.addEventListener('error', (event) => {
+                    this.eventSystem.emit('app:error', { 
+                        error: event.error, 
+                        filename: event.filename,
+                        lineno: event.lineno,
+                        colno: event.colno 
+                    });
+                });
+                
+                // Unhandled promise rejections
+                window.addEventListener('unhandledrejection', (event) => {
+                    this.eventSystem.emit('app:error', { 
+                        error: event.reason, 
+                        type: 'unhandledrejection' 
+                    });
+                });
+                
+                // Listen for app errors
+                this.eventSystem.on('app:error', (errorData) => {
+                    console.error('Application error:', errorData);
+                    // Can send to analytics service here
+                });
+            }
+            
+            _startApplication() {
+                // Hide loading overlay
+                this._hideLoading();
+                
+                // Initialize router
+                const router = this.context.resolve('router');
+                const state = this.context.resolve('statemanager');
+                
+                // Set initial state
+                state.set('app.initialized', true);
+                state.set('app.startTime', Date.now());
+                state.set('user.language', AppConfig.defaultLanguage);
+                
+                // Handle route changes
+                router.onRouteChange((path) => {
+                    this._renderView(path);
+                });
+                
+                // Start with current path
+                const initialPath = router.getCurrentPath();
+                this._renderView(initialPath || AppConfig.routes.home);
+                
+                // Mark app as ready
+                setTimeout(() => {
+                    this.eventSystem.emit('app:ready', { 
+                        timestamp: Date.now(),
+                        initialPath 
+                    });
+                }, 100);
+            }
+            
+            async _renderView(path) {
+                const appContainer = document.getElementById('app');
+                if (!appContainer) return;
+                
+                // Show loading state
+                appContainer.style.opacity = '0.5';
+                
+                try {
+                    // Determine which view to render based on path
+                    let viewModule;
+                    
+                    if (path === AppConfig.routes.home || path === '/') {
+                        viewModule = await import(`${AppConfig.pagesPath}/home/home_page.js`);
+                    } else if (path.startsWith(AppConfig.routes.login)) {
+                        viewModule = await import(`${AppConfig.pagesPath}/auth/auth_view.js`);
+                    } else {
+                        // Default to home for now
+                        viewModule = await import(`${AppConfig.pagesPath}/home/home_page.js`);
+                    }
+                    
+                    // Clean up previous view
+                    if (this.currentView && typeof this.currentView.cleanup === 'function') {
+                        this.currentView.cleanup();
+                    }
+                    
+                    // Create new view instance
+                    const ViewClass = viewModule.default || viewModule;
+                    this.currentView = new ViewClass(this.context);
+                    
+                    // Render view
+                    const viewElement = this.currentView.render();
+                    appContainer.innerHTML = '';
+                    appContainer.appendChild(viewElement);
+                    
+                    // Restore opacity
+                    appContainer.style.opacity = '1';
+                    
+                    // Emit view changed event
+                    this.eventSystem.emit('view:changed', { 
+                        path, 
+                        view: this.currentView.constructor.name 
+                    });
+                    
+                } catch (error) {
+                    console.error('Failed to render view:', error);
+                    
+                    // Show error view
+                    appContainer.innerHTML = `
+                        <div style="padding: 40px; text-align: center;">
+                            <h2 style="color: var(--accent-color);">خطا در بارگذاری صفحه</h2>
+                            <p>صفحه مورد نظر یافت نشد یا خطایی رخ داده است.</p>
+                            <button onclick="window.location.hash = '/'" style="
+                                margin-top: 20px;
+                                padding: 10px 20px;
+                                background: var(--accent-color);
+                                color: white;
+                                border: none;
+                                border-radius: 5px;
+                                cursor: pointer;
+                            ">
+                                بازگشت به صفحه اصلی
+                            </button>
+                        </div>
+                    `;
+                    appContainer.style.opacity = '1';
+                }
+            }
+            
+            _showLoading() {
+                let overlay = document.getElementById('loading-overlay');
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.id = 'loading-overlay';
+                    overlay.className = 'loading-overlay';
+                    overlay.innerHTML = `
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">در حال بارگذاری ${AppConfig.appName}...</div>
+                    `;
+                    document.body.appendChild(overlay);
+                }
+            }
+            
+            _hideLoading() {
+                const overlay = document.getElementById('loading-overlay');
+                if (overlay) {
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        if (overlay.parentNode) {
+                            overlay.parentNode.removeChild(overlay);
+                        }
+                    }, 500);
+                }
+            }
+            
+            _showFatalError(error) {
+                document.body.innerHTML = '';
+                
+                const errorScreen = document.createElement('div');
+                errorScreen.className = 'error-screen';
+                errorScreen.innerHTML = `
+                    <h1>خطای بحرانی</h1>
+                    <p>متأسفانه برنامه با خطای غیرمنتظره‌ای مواجه شده است.</p>
+                    <p><small>${error?.message || 'خطای ناشناخته'}</small></p>
+                    <button onclick="window.location.reload()">تلاش مجدد</button>
+                `;
+                
+                document.body.appendChild(errorScreen);
+            }
+            
+            // Public API
+            getService(name) {
+                return this.context.resolve(name);
+            }
+            
+            getConfig() {
+                return this.context.getConfig('app');
+            }
+            
+            navigate(path) {
+                const router = this.context.resolve('router');
+                return router.navigate(path);
+            }
+            
+            on(event, handler) {
+                return this.eventSystem.on(event, handler);
+            }
+            
+            off(event, handler) {
+                return this.eventSystem.off(event, handler);
+            }
+            
+            emit(event, data) {
+                return this.eventSystem.emit(event, data);
+            }
+        }
+        
+        // ==================== GLOBAL INITIALIZATION ====================
+        // Make app globally available for debugging
+        window.Vakamova = new VakamovaApp();
+        
+        // Start the application when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            window.Vakamova.init().catch(error => {
+                console.error('Failed to initialize Vakamova:', error);
+            });
+        });
+        
+        // Export for module usage
+        export { VakamovaApp, AppConfig, AppInterfaces };
+    </script>
+    
     <style>
+        /* Additional global styles */
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
-        body {
-            background: linear-gradient(135deg, #1a237e 0%, #311b92 100%);
-            color: white;
-            min-height: 100vh;
-            padding: 20px;
+        a {
+            color: var(--accent-color);
+            text-decoration: none;
         }
         
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
+        button {
+            font-family: inherit;
         }
         
-        header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            backdrop-filter: blur(10px);
+        /* Smooth transitions */
+        .fade-enter {
+            opacity: 0;
         }
         
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-            background: linear-gradient(45deg, #00b0ff, #00e5ff);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .fade-enter-active {
+            opacity: 1;
+            transition: opacity 300ms ease-in;
         }
         
-        .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
+        .fade-exit {
+            opacity: 1;
         }
         
-        .test-section {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .test-card {
-            background: rgba(255, 255, 255, 0.15);
-            border-radius: 15px;
-            padding: 25px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-        }
-        
-        .test-card:hover {
-            transform: translateY(-5px);
-            border-color: #00b0ff;
-            background: rgba(0, 176, 255, 0.2);
-        }
-        
-        .test-card h3 {
-            font-size: 1.3rem;
-            margin-bottom: 15px;
-            color: #00e5ff;
-        }
-        
-        .test-card p {
-            font-size: 0.9rem;
-            opacity: 0.8;
-            margin-bottom: 20px;
-        }
-        
-        .status {
-            font-size: 0.8rem;
-            padding: 8px 15px;
-            border-radius: 20px;
-            display: inline-block;
-            margin-top: 10px;
-        }
-        
-        .pending { background: #ff9800; color: #000; }
-        .success { background: #4caf50; color: white; }
-        .error { background: #f44336; color: white; }
-        
-        .action-section {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-top: 40px;
-        }
-        
-        .action-btn {
-            padding: 15px 30px;
-            border: none;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            min-width: 200px;
-        }
-        
-        .test-all {
-            background: linear-gradient(45deg, #00c853, #64dd17);
-            color: white;
-        }
-        
-        .clear-logs {
-            background: linear-gradient(45deg, #ff3d00, #ff9100);
-            color: white;
-        }
-        
-        .action-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-        }
-        
-        .log-section {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            padding: 20px;
-            margin-top: 40px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        
-        .log-section h3 {
-            color: #00e5ff;
-            margin-bottom: 15px;
-            font-size: 1.4rem;
-        }
-        
-        .log-entry {
-            padding: 10px;
-            margin: 8px 0;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 0.9rem;
-        }
-        
-        .log-success { border-right: 4px solid #4caf50; }
-        .log-error { border-right: 4px solid #f44336; }
-        .log-info { border-right: 4px solid #2196f3; }
-        
-        .system-status {
-            text-align: center;
-            margin-top: 30px;
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.4);
-            border-radius: 15px;
-        }
-        
-        .status-ready {
-            color: #00e5ff;
-            font-size: 1.2rem;
-            font-weight: bold;
-        }
-        
-        @media (max-width: 600px) {
-            .test-section {
-                grid-template-columns: 1fr;
-            }
-            
-            .action-section {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .action-btn {
-                width: 100%;
-                max-width: 300px;
-            }
-            
-            h1 {
-                font-size: 2rem;
-            }
-        }
-        
-        .pulse {
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.7; }
-            100% { opacity: 1; }
+        .fade-exit-active {
+            opacity: 0;
+            transition: opacity 300ms ease-out;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1 class="pulse">🚀 HyperLang</h1>
-            <p class="subtitle">سیستم تست هسته - نسخه MVP</p>
-        </header>
-        
-        <div class="system-status">
-            <div class="status-ready">✅ سیستم Vokamova آماده است</div>
-            <p style="margin-top: 10px; opacity: 0.9;">برای شروع تست، روی کارت‌های زیر کلیک کنید</p>
-        </div>
-        
-        <div class="test-section">
-            <div class="test-card" onclick="testDatabase()">
-                <h3>🧠 تست پایگاه داده</h3>
-                <p>بررسی ذخیره‌سازی IndexedDB و localStorage</p>
-                <div id="db-status" class="status pending">در انتظار تست</div>
-            </div>
-            
-            <div class="test-card" onclick="testState()">
-                <h3>⚙️ تست مدیریت وضعیت</h3>
-                <p>بررسی State Manager و سیستم رویداد</p>
-                <div id="state-status" class="status pending">در انتظار تست</div>
-            </div>
-            
-            <div class="test-card" onclick="testRouter()">
-                <h3>🛣️ تست مسیریابی</h3>
-                <p>بررسی Router و navigation</p>
-                <div id="router-status" class="status pending">در انتظار تست</div>
-            </div>
-            
-            <div class="test-card" onclick="testAuth()">
-                <h3>🔐 تست احراز هویت</h3>
-                <p>بررسی Auth و مدیریت کاربر</p>
-                <div id="auth-status" class="status pending">در انتظار تست</div>
-            </div>
-        </div>
-        
-        <div class="action-section">
-            <button class="action-btn test-all" onclick="testAllModules()">
-                🧪 تست کامل همه ماژول‌ها
-            </button>
-            
-            <button class="action-btn clear-logs" onclick="clearLogs()">
-                🗑️ پاک کردن لاگ‌ها
-            </button>
-        </div>
-        
-        <div class="log-section">
-            <h3>📝 لاگ سیستم</h3>
-            <div id="log-container">
-                <!-- لاگ‌ها اینجا نمایش داده می‌شوند -->
-                <div class="log-entry log-info">سیستم تست راه‌اندازی شد - منتظر فرمان شما</div>
-            </div>
-        </div>
+    <!-- Main application container -->
+    <div id="app">
+        <!-- Content will be dynamically rendered here -->
     </div>
-
+    
+    <!-- 
+        Debug panel - remove in production
+        Access via: window.Vakamova
+    -->
     <script>
-        // لاگ سیستم
-        function addLog(message, type = 'info') {
-            const logContainer = document.getElementById('log-container');
-            const logEntry = document.createElement('div');
-            logEntry.className = `log-entry log-${type}`;
-            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
-            logContainer.appendChild(logEntry);
-            logContainer.scrollTop = logContainer.scrollHeight;
+        if (window.location.search.includes('debug')) {
+            const debugPanel = document.createElement('div');
+            debugPanel.style.cssText = `
+                position: fixed;
+                bottom: 10px;
+                right: 10px;
+                background: rgba(0,0,0,0.8);
+                color: #0f0;
+                padding: 10px;
+                border-radius: 5px;
+                font-family: monospace;
+                font-size: 12px;
+                z-index: 10000;
+                max-width: 300px;
+                max-height: 200px;
+                overflow: auto;
+            `;
+            debugPanel.innerHTML = `
+                <strong>Vakamova Debug</strong><br>
+                <button onclick="console.log(window.Vakamova)">Log App</button>
+                <button onclick="window.Vakamova.navigate('/')">Home</button>
+                <button onclick="window.Vakamova.navigate('/login')">Login</button>
+            `;
+            document.body.appendChild(debugPanel);
         }
-        
-        // تست پایگاه داده
-        async function testDatabase() {
-            const status = document.getElementById('db-status');
-            status.textContent = 'در حال تست...';
-            status.className = 'status pending';
-            
-            try {
-                addLog('شروع تست پایگاه داده...', 'info');
-                
-                // تست localStorage
-                if (typeof localStorage !== 'undefined') {
-                    localStorage.setItem('test', 'hyperlang');
-                    if (localStorage.getItem('test') === 'hyperlang') {
-                        addLog('✅ localStorage کار می‌کند', 'success');
-                        localStorage.removeItem('test');
-                    }
-                }
-                
-                // تست IndexedDB
-                if (window.indexedDB) {
-                    addLog('✅ IndexedDB در دسترس است', 'success');
-                } else {
-                    throw new Error('IndexedDB پشتیبانی نمی‌شود');
-                }
-                
-                status.textContent = '✅ تست موفق';
-                status.className = 'status success';
-                addLog('✅ تست پایگاه داده با موفقیت انجام شد', 'success');
-                
-            } catch (error) {
-                status.textContent = '❌ خطا در تست';
-                status.className = 'status error';
-                addLog(`❌ خطا در تست پایگاه داده: ${error.message}`, 'error');
-            }
-        }
-        
-        // تست مدیریت وضعیت
-        function testState() {
-            const status = document.getElementById('state-status');
-            status.textContent = 'در حال تست...';
-            status.className = 'status pending';
-            
-            try {
-                addLog('شروع تست مدیریت وضعیت...', 'info');
-                
-                // تست ساده state
-                const testState = {};
-                const testKey = 'testStateKey';
-                const testValue = { test: true, timestamp: Date.now() };
-                
-                // شبیه‌سازی set
-                testState[testKey] = testValue;
-                
-                // شبیه‌سازی get
-                if (testState[testKey] && testState[testKey].test === true) {
-                    addLog('✅ مدیریت وضعیت پایه کار می‌کند', 'success');
-                }
-                
-                status.textContent = '✅ تست موفق';
-                status.className = 'status success';
-                addLog('✅ تست مدیریت وضعیت با موفقیت انجام شد', 'success');
-                
-            } catch (error) {
-                status.textContent = '❌ خطا در تست';
-                status.className = 'status error';
-                addLog(`❌ خطا در تست مدیریت وضعیت: ${error.message}`, 'error');
-            }
-        }
-        
-        // تست مسیریابی
-        function testRouter() {
-            const status = document.getElementById('router-status');
-            status.textContent = 'در حال تست...';
-            status.className = 'status pending';
-            
-            try {
-                addLog('شروع تست مسیریابی...', 'info');
-                
-                // تست تغییر hash بدون ریفرش
-                const originalHash = window.location.hash;
-                window.location.hash = '#test-route';
-                
-                if (window.location.hash === '#test-route') {
-                    addLog('✅ تغییر مسیر hash کار می‌کند', 'success');
-                    window.location.hash = originalHash;
-                }
-                
-                // تست history API
-                if (window.history && window.history.pushState) {
-                    addLog('✅ History API در دسترس است', 'success');
-                }
-                
-                status.textContent = '✅ تست موفق';
-                status.className = 'status success';
-                addLog('✅ تست مسیریابی با موفقیت انجام شد', 'success');
-                
-            } catch (error) {
-                status.textContent = '❌ خطا در تست';
-                status.className = 'status error';
-                addLog(`❌ خطا در تست مسیریابی: ${error.message}`, 'error');
-            }
-        }
-        
-        // تست احراز هویت
-        function testAuth() {
-            const status = document.getElementById('auth-status');
-            status.textContent = 'در حال تست...';
-            status.className = 'status pending';
-            
-            try {
-                addLog('شروع تست احراز هویت...', 'info');
-                
-                // تست session ساده
-                const testSession = {
-                    guest: true,
-                    userId: 'guest_' + Date.now(),
-                    createdAt: new Date().toISOString()
-                };
-                
-                if (testSession.guest && testSession.userId) {
-                    addLog('✅ ایجاد session مهمان کار می‌کند', 'success');
-                }
-                
-                status.textContent = '✅ تست موفق';
-                status.className = 'status success';
-                addLog('✅ تست احراز هویت با موفقیت انجام شد', 'success');
-                
-            } catch (error) {
-                status.textContent = '❌ خطا در تست';
-                status.className = 'status error';
-                addLog(`❌ خطا در تست احراز هویت: ${error.message}`, 'error');
-            }
-        }
-        
-        // تست همه ماژول‌ها
-        async function testAllModules() {
-            addLog('شروع تست کامل همه ماژول‌ها...', 'info');
-            
-            // غیرفعال کردن دکمه در حین تست
-            const testBtn = document.querySelector('.test-all');
-            const originalText = testBtn.textContent;
-            testBtn.textContent = '⏳ در حال تست...';
-            testBtn.disabled = true;
-            
-            // اجرای متوالی تست‌ها
-            await testDatabase();
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            await new Promise(resolve => {
-                testState();
-                setTimeout(resolve, 500);
-            });
-            
-            await new Promise(resolve => {
-                testRouter();
-                setTimeout(resolve, 500);
-            });
-            
-            await new Promise(resolve => {
-                testAuth();
-                setTimeout(resolve, 500);
-            });
-            
-            // بررسی نتایج
-            const allStatuses = document.querySelectorAll('.status');
-            const allPassed = Array.from(allStatuses).every(status => 
-                status.textContent.includes('✅')
-            );
-            
-            if (allPassed) {
-                addLog('🎉 همه تست‌ها با موفقیت گذرانده شدند!', 'success');
-            } else {
-                addLog('⚠️ برخی تست‌ها ناموفق بودند', 'error');
-            }
-            
-            // بازگردانی دکمه
-            testBtn.textContent = originalText;
-            testBtn.disabled = false;
-        }
-        
-        // پاک کردن لاگ‌ها
-        function clearLogs() {
-            const logContainer = document.getElementById('log-container');
-            logContainer.innerHTML = '<div class="log-entry log-info">لاگ‌ها پاک شدند</div>';
-            addLog('لاگ سیستم پاک شد', 'info');
-        }
-        
-        // راه‌اندازی اولیه
-        document.addEventListener('DOMContentLoaded', function() {
-            addLog('سیستم تست HyperLang راه‌اندازی شد', 'info');
-            addLog('برای شروع، روی یکی از کارت‌های تست کلیک کنید', 'info');
-            
-            // نمایش اطلاعات مرورگر
-            addLog(`مرورگر: ${navigator.userAgent.split(' ')[0]}`, 'info');
-            addLog(`پلتفرم: ${navigator.platform}`, 'info');
-            addLog(`آنلاین: ${navigator.onLine ? '✅ بله' : '❌ خیر'}`, 'info');
-        });
     </script>
 </body>
 </html>
