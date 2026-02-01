@@ -1,1 +1,188 @@
 
+// در فایل test_runner.html خود، این کد را جایگزین بخش <script> کن
+
+// ==================== پیکربندی همه فایل‌های پروژه ====================
+const PROJECT_MODULES = [
+    // هسته اصلی
+    { name: 'Event Bus', path: 'core/event_bus.js', type: 'core' },
+    { name: 'State Manager', path: 'core/state_manager.js', type: 'core' },
+    { name: 'Context Provider', path: 'core/context_provider.js', type: 'core' },
+    { name: 'API Client', path: 'core/api_client.js', type: 'core' },
+    { name: 'Router Middleware', path: 'core/router_middleware.js', type: 'core' },
+    { name: 'Guards', path: 'core/guards.js', type: 'core' },
+    
+    // ماژول‌های سیستمی
+    { name: 'Auth Manager', path: 'modules/auth/auth_manager.js', type: 'auth' },
+    { name: 'Token Manager', path: 'modules/auth/token_manager.js', type: 'auth' },
+    { name: 'Auth Middleware', path: 'modules/auth/auth_middleware.js', type: 'auth' },
+    { name: 'Lesson Engine', path: 'modules/lessons/engine.js', type: 'lesson' },
+    
+    // صفحات
+    { name: 'Auth View', path: 'pages/auth/auth_view.js', type: 'page' },
+    { name: 'Home Page', path: 'pages/home/home_page.js', type: 'page' },
+    { name: 'Router', path: 'pages/router.js', type: 'page' }
+];
+
+// ==================== تست جریان کامل کاربر ====================
+async function runFullIntegrationTest() {
+    console.log('🚀 شروع تست یکپارچه کامل Vakamova');
+    
+    // مرحله ۱: بارگذاری همه ماژول‌ها
+    const loadResults = await loadAllModules();
+    if (!loadResults.success) {
+        console.error('❌ خطا در بارگذاری ماژول‌ها');
+        return;
+    }
+    
+    // مرحله ۲: تست جریان احراز هویت
+    console.log('🔐 تست جریان احراز هویت...');
+    const authTest = await testAuthFlow();
+    if (!authTest.success) {
+        console.error('❌ سیستم احراز هویت مشکل دارد');
+        return;
+    }
+    
+    // مرحله ۳: تست مسیریابی و دسترسی‌ها
+    console.log('📍 تست مسیریابی و دسترسی‌ها...');
+    const routingTest = await testRoutingAndGuards();
+    
+    // مرحله ۴: تست ماژول درس
+    console.log('📚 تست موتور درس‌ها...');
+    const lessonTest = await testLessonModule();
+    
+    // خلاصه نتایج
+    console.log('\n📊 ========== نتایج نهایی تست ==========');
+    console.log(`✅ ماژول‌های بارگذاری شده: ${loadResults.loadedCount}/${PROJECT_MODULES.length}`);
+    console.log(`✅ احراز هویت: ${authTest.success ? 'قابل استفاده' : 'مشکل دارد'}`);
+    console.log(`📍 مسیریابی: ${routingTest.success ? 'فعال' : 'نیاز به تنظیم'}`);
+    console.log(`📚 موتور درس: ${lessonTest.success ? 'آماده' : 'در حال توسعه'}`);
+    console.log('🎉 تست یکپارچه کامل شد!');
+    
+    // پیشنهاد مرحله بعد
+    if (authTest.success && routingTest.success) {
+        console.log('\n💡 پیشنهاد بعدی: فعال‌سازی صفحه اصلی (index.html) و اتصال Router');
+    }
+}
+
+// ==================== توابع تست ====================
+async function testAuthFlow() {
+    try {
+        // تست ثبت نام کاربر جدید
+        const signupResult = await auth_manager.register({
+            email: 'test@vakamova.com',
+            password: 'Test123!@#',
+            name: 'کاربر تست'
+        });
+        
+        if (!signupResult.success) {
+            console.warn('⚠️ ثبت نام تستی موفق نبود (ممکن است کاربر از قبل وجود داشته باشد)');
+        }
+        
+        // تست ورود
+        const loginResult = await auth_manager.login('test@vakamova.com', 'Test123!@#');
+        
+        // تست توکن
+        const tokenValid = await token_manager.validateToken(loginResult.token);
+        
+        // تست وضعیت در State Manager
+        const userState = state_manager.get('auth.user');
+        
+        return {
+            success: loginResult.success && tokenValid,
+            user: userState,
+            message: 'جریان احراز هویت بررسی شد'
+        };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+async function testRoutingAndGuards() {
+    try {
+        // تست Route Guards
+        const publicRouteAccess = await guards.checkRouteAccess('/login', null);
+        const protectedRouteAccess = await guards.checkRouteAccess('/dashboard', { isAuthenticated: true });
+        
+        // تست Middleware
+        const middlewareResult = await router_middleware.process({
+            path: '/lesson/1',
+            user: { isAuthenticated: true, role: 'student' }
+        });
+        
+        return {
+            success: publicRouteAccess.allowed && !protectedRouteAccess.allowed && middlewareResult.success,
+            details: { publicRouteAccess, protectedRouteAccess, middlewareResult }
+        };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+async function testLessonModule() {
+    try {
+        // تست بارگذاری درس‌ها
+        const lessons = await lesson_engine.getAvailableLessons();
+        const firstLesson = await lesson_engine.loadLesson(lessons[0]?.id || 'default');
+        
+        return {
+            success: Array.isArray(lessons) && firstLesson !== null,
+            lessonCount: lessons?.length || 0,
+            sampleLesson: firstLesson?.title || 'درس تست'
+        };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+// ==================== سیستم بارگذاری ====================
+async function loadAllModules() {
+    const results = { loaded: [], failed: [], loadedCount: 0 };
+    
+    for (const module of PROJECT_MODULES) {
+        try {
+            await loadModule(module);
+            results.loaded.push(module.name);
+            results.loadedCount++;
+            console.log(`✅ ${module.name} بارگذاری شد`);
+        } catch (error) {
+            results.failed.push({ name: module.name, error: error.message });
+            console.warn(`⚠️ خطا در ${module.name}: ${error.message}`);
+        }
+    }
+    
+    return {
+        success: results.failed.length === 0,
+        ...results
+    };
+}
+
+function loadModule(moduleInfo) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = moduleInfo.path;
+        script.type = 'module';
+        
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`خطا در بارگذاری ${moduleInfo.path}`));
+        
+        document.head.appendChild(script);
+    });
+}
+
+// ==================== اجرای خودکار تست ====================
+document.addEventListener('DOMContentLoaded', () => {
+    // اضافه کردن دکمه تست به صفحه
+    const testButton = document.createElement('button');
+    testButton.textContent = '🚀 اجرای تست کامل Vakamova';
+    testButton.style.cssText = `
+        position: fixed; top: 20px; right: 20px; 
+        padding: 15px 25px; background: #0d7377; 
+        color: white; border: none; border-radius: 10px;
+        cursor: pointer; font-size: 16px; z-index: 1000;
+    `;
+    testButton.onclick = runFullIntegrationTest;
+    document.body.appendChild(testButton);
+    
+    console.log('🧪 تستر یکپارچه Vakamova آماده است');
+    console.log('برای شروع تست، روی دکمه "اجرای تست کامل" کلیک کنید');
+});
