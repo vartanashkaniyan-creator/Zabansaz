@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست Button - Vakamova</title>
+    <style>
+        body {
+            font-family: Tahoma, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .test-area {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            min-height: 150px;
+        }
+        .log {
+            background: #1a1a2e;
+            color: #64ffda;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 تست کامپوننت Button</h1>
+        <p>این صفحه فقط کامپوننت Button را به صورت جداگانه آزمایش می‌کند.</p>
+        
+        <div class="test-area" id="testArea">
+            <!-- دکمه‌ها اینجا نمایش داده می‌شوند -->
+        </div>
+        
+        <button onclick="runButtonTests()" style="
+            padding: 12px 24px;
+            background: #0d7377;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        ">
+            اجرای تست Button
+        </button>
+        
+        <div class="log" id="log">
+            لاگ تست اینجا نمایش داده می‌شود...
+        </div>
+    </div>
+
+    <script type="module">
+        // لود کردن فایل Button
+        import './components/Button.js';
+        
+        window.runButtonTests = async function() {
+            const log = document.getElementById('log');
+            const testArea = document.getElementById('testArea');
+            
+            log.innerHTML = '<div>🚀 شروع تست Button...</div>';
+            
+            try {
+                // 1. بررسی وجود کلاس Button
+                if (typeof VakamovaButton === 'undefined') {
+                    log.innerHTML += '<div style="color:red">❌ کلاس Button یافت نشد!</div>';
+                    return;
+                }
+                log.innerHTML += '<div style="color:green">✅ کلاس Button موجود است</div>';
+                
+                // 2. ساخت نمونه Button
+                const button = new VakamovaButton({
+                    eventBus: {
+                        emit: (event, data) => {
+                            log.innerHTML += `<div>📢 رویداد: ${event}</div>`;
+                        },
+                        on: () => () => {}
+                    }
+                });
+                
+                // 3. ساخت دکمه اول
+                button.render(testArea, {
+                    type: 'primary',
+                    size: 'lg',
+                    text: 'دکمه تست اصلی',
+                    onClick: () => {
+                        alert('✅ دکمه کار می‌کند!');
+                    }
+                });
+                
+                log.innerHTML += '<div style="color:green">✅ دکمه اصلی ساخته شد</div>';
+                
+                // 4. تست disable/enable
+                setTimeout(() => {
+                    button.disable();
+                    log.innerHTML += '<div>🔴 دکمه غیرفعال شد</div>';
+                    
+                    setTimeout(() => {
+                        button.enable();
+                        log.innerHTML += '<div>🟢 دکمه فعال شد</div>';
+                    }, 1000);
+                }, 500);
+                
+                // 5. تست loading
+                setTimeout(() => {
+                    button.setLoading(true);
+                    log.innerHTML += '<div>⏳ حالت loading فعال شد</div>';
+                    
+                    setTimeout(() => {
+                        button.setLoading(false);
+                        log.innerHTML += '<div>✅ حالت loading غیرفعال شد</div>';
+                    }, 1500);
+                }, 2000);
+                
+                // 6. ساخت دکمه‌های بیشتر برای نمایش
+                setTimeout(() => {
+                    const types = ['primary', 'secondary', 'success', 'warning', 'danger'];
+                    
+                    types.forEach((type, i) => {
+                        const btn = new VakamovaButton();
+                        const container = document.createElement('div');
+                        container.style.marginTop = '10px';
+                        testArea.appendChild(container);
+                        
+                        btn.render(container, {
+                            type: type,
+                            text: `دکمه ${type}`,
+                            size: 'md',
+                            onClick: () => {
+                                log.innerHTML += `<div>🎯 کلیک روی دکمه ${type}</div>`;
+                            }
+                        });
+                    });
+                    
+                    log.innerHTML += '<div style="color:green">✅ ۵ دکمه مختلف ساخته شدند</div>';
+                }, 3000);
+                
+            } catch (error) {
+                log.innerHTML += `<div style="color:red">❌ خطا: ${error.message}</div>`;
+                console.error(error);
+            }
+        };
+    </script>
+</body>
+</html>
