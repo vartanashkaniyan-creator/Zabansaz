@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست کامپوننت دکمه Vakamova</title>
+    <style>
+        body { font-family: system-ui; padding: 20px; background: #f5f5f5; }
+        .test-area { background: white; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        .btn-container { display: flex; gap: 10px; flex-wrap: wrap; margin: 10px 0; padding: 10px; border: 1px dashed #ccc; }
+        .log { background: #1a1a1a; color: #00ff00; padding: 10px; border-radius: 5px; margin-top: 20px; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست کامپوننت Button</h1>
+    
+    <div class="test-area">
+        <h3>۱. انواع دکمه‌ها:</h3>
+        <div id="types-test" class="btn-container"></div>
+    </div>
+    
+    <div class="test-area">
+        <h3>۲. حالت‌های مختلف:</h3>
+        <div id="states-test" class="btn-container"></div>
+        <button onclick="toggleLoading()">تغییر حالت Loading</button>
+        <button onclick="toggleDisabled()">تغییر حالت Disabled</button>
+    </div>
+    
+    <div class="test-area">
+        <h3>۳. رویدادها:</h3>
+        <div id="events-test" class="btn-container"></div>
+        <p>رویدادها در کنسول مرورگر (F12) نمایش داده می‌شوند</p>
+    </div>
+    
+    <div class="log" id="log"></div>
+    
+    <script type="module">
+        import { VakamovaButton, ButtonFactory } from '../components/Button.js';
+        
+        // Mock EventBus برای تست
+        const mockEventBus = {
+            emit: (event, data) => {
+                console.log(`🎯 ${event}:`, data);
+                document.getElementById('log').innerHTML += 
+                    `<div>${new Date().toLocaleTimeString()} - ${event}</div>`;
+            },
+            on: () => () => {}
+        };
+        
+        // ==================== تست ۱: انواع دکمه‌ها ====================
+        const typesContainer = document.getElementById('types-test');
+        const types = ['primary', 'secondary', 'success', 'warning', 'danger', 'ghost'];
+        
+        types.forEach(type => {
+            const btn = new VakamovaButton({ eventBus: mockEventBus });
+            btn.render(typesContainer, {
+                type: type,
+                text: `دکمه ${type}`,
+                size: 'md'
+            });
+        });
+        
+        // ==================== تست ۲: حالت‌های مختلف ====================
+        const statesContainer = document.getElementById('states-test');
+        
+        // دکمه عادی
+        const normalBtn = ButtonFactory.createPrimary('دکمه عادی', { eventBus: mockEventBus });
+        normalBtn.render(statesContainer);
+        
+        // دکمه loading
+        const loadingBtn = ButtonFactory.createPrimary('در حال بارگذاری', { 
+            eventBus: mockEventBus,
+            loading: true 
+        });
+        loadingBtn.render(statesContainer);
+        
+        // دکمه disabled
+        const disabledBtn = ButtonFactory.createPrimary('غیرفعال', { 
+            eventBus: mockEventBus,
+            disabled: true 
+        });
+        disabledBtn.render(statesContainer);
+        
+        // دکمه با آیکون
+        const iconBtn = ButtonFactory.createPrimary('با آیکون', {
+            eventBus: mockEventBus,
+            icon: '⭐',
+            iconPosition: 'left'
+        });
+        iconBtn.render(statesContainer);
+        
+        // ==================== تست ۳: رویدادها ====================
+        const eventsContainer = document.getElementById('events-test');
+        
+        const eventBtn = new VakamovaButton({ eventBus: mockEventBus });
+        eventBtn.render(eventsContainer, {
+            text: 'کلیک کن (تست رویداد)',
+            type: 'primary',
+            onClick: (event, btnInstance) => {
+                alert(`دکمه ${btnInstance.getId()} کلیک شد!`);
+            },
+            onHover: (isHovering) => {
+                console.log('هاور شد؟', isHovering);
+            }
+        });
+        
+        // ==================== توابع کمکی ====================
+        window.toggleLoading = () => {
+            loadingBtn.setLoading(!loadingBtn.isLoading());
+        };
+        
+        window.toggleDisabled = () => {
+            if (disabledBtn.isDisabled()) {
+                disabledBtn.enable();
+            } else {
+                disabledBtn.disable();
+            }
+        };
+        
+        // گزارش نهایی
+        console.log('✅ تست Button بارگذاری شد');
+        mockEventBus.emit('test:button:loaded', { 
+            buttonCount: types.length + 4,
+            timestamp: new Date().toISOString() 
+        });
+    </script>
+</body>
+</html>
