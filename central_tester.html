@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 تستر مرکزی Vakamova - 34 فایل</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Vazirmatn', sans-serif; }
+        body { background: #0f172a; color: #f8fafc; padding: 20px; }
+        
+        .header { text-align: center; margin-bottom: 40px; }
+        h1 { color: #38bdf8; font-size: 2.5rem; margin-bottom: 10px; }
+        .subtitle { color: #94a3b8; font-size: 1.1rem; }
+        
+        .stats-bar {
+            display: flex; gap: 20px; justify-content: center; margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        .stat-card {
+            background: rgba(30, 41, 59, 0.7); padding: 15px 25px;
+            border-radius: 12px; text-align: center; min-width: 140px;
+            border: 1px solid #475569;
+        }
+        .stat-value { font-size: 2rem; font-weight: bold; }
+        .stat-label { color: #94a3b8; font-size: 0.9rem; margin-top: 5px; }
+        
+        .section {
+            background: rgba(15, 23, 42, 0.8); border-radius: 16px;
+            padding: 25px; margin-bottom: 30px; border: 1px solid #334155;
+        }
+        .section-title {
+            color: #22d3ee; font-size: 1.5rem; margin-bottom: 20px;
+            padding-bottom: 10px; border-bottom: 2px solid #0ea5e9;
+        }
+        
+        .files-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 18px; margin-top: 20px;
+        }
+        .file-card {
+            background: rgba(30, 41, 59, 0.9); border-radius: 12px; padding: 20px;
+            border: 2px solid transparent; transition: all 0.3s;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .file-card:hover { border-color: #3b82f6; transform: translateY(-3px); }
+        .file-card.loaded { border-color: #10b981; }
+        .file-card.error { border-color: #ef4444; }
+        .file-card.pending { border-color: #f59e0b; }
+        
+        .file-header { display: flex; justify-content: space-between; align-items: center; }
+        .file-name { font-weight: bold; font-size: 1.1rem; color: #e2e8f0; }
+        .file-badge {
+            padding: 4px 10px; border-radius: 20px; font-size: 0.8rem;
+            font-weight: bold; background: #475569;
+        }
+        .file-path { color: #94a3b8; font-size: 0.9rem; direction: ltr; text-align: left; }
+        
+        .test-btn {
+            padding: 10px 16px; background: #3b82f6; color: white;
+            border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
+            transition: all 0.2s; margin-top: 10px; width: 100%;
+        }
+        .test-btn:hover { background: #2563eb; }
+        .test-btn:disabled { background: #475569; cursor: not-allowed; }
+        
+        .result-box {
+            padding: 12px; border-radius: 8px; font-size: 0.9rem;
+            margin-top: 10px; display: none;
+        }
+        .result-success { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .result-error { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+        
+        .controls {
+            display: flex; gap: 15px; justify-content: center; margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        .control-btn {
+            padding: 14px 28px; border: none; border-radius: 10px;
+            font-size: 1.1rem; font-weight: bold; cursor: pointer;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .control-btn.primary { background: linear-gradient(135deg, #0ea5e9, #3b82f6); color: white; }
+        .control-btn.secondary { background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid #475569; }
+        
+        .log-container {
+            background: rgba(0, 0, 0, 0.6); border-radius: 12px; padding: 20px;
+            margin-top: 30px; max-height: 400px; overflow-y: auto;
+            font-family: monospace; font-size: 0.9rem;
+        }
+        .log-entry { padding: 8px 12px; border-bottom: 1px solid #334155; }
+        .log-time { color: #94a3b8; margin-left: 10px; }
+        
+        @media (max-width: 768px) {
+            .files-grid { grid-template-columns: 1fr; }
+            .stats-bar { flex-direction: column; align-items: center; }
+            .control-btn { width: 100%; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧪 تستر مرکزی Vakamova</h1>
+        <p class="subtitle">بررسی ۳۴ فایل پروژه - هر فایل دارای دکمه تست مستقل</p>
+    </div>
+    
+    <div class="stats-bar" id="statsBar">
+        <!-- آمار به صورت دینامیک پر می‌شود -->
+    </div>
+    
+    <div class="controls">
+        <button class="control-btn primary" onclick="loadAllFiles()">
+            <span>📂 بارگذاری همه فایل‌ها</span>
+        </button>
+        <button class="control-btn secondary" onclick="runAllTests()">
+            <span>⚡ اجرای همه تست‌ها</span>
+        </button>
+        <button class="control-btn secondary" onclick="clearResults()">
+            <span>🗑️ پاک کردن نتایج</span>
+        </button>
+    </div>
+    
+    <!-- بخش Core -->
+    <div class="section" id="section-core">
+        <h2 class="section-title">🧠 هسته اصلی (Core)</h2>
+        <div class="files-grid" id="core-files"></div>
+    </div>
+    
+    <!-- بخش Modules -->
+    <div class="section" id="section-modules">
+        <h2 class="section-title">🔧 ماژول‌ها (Modules)</h2>
+        <div class="files-grid" id="module-files"></div>
+    </div>
+    
+    <!-- بخش Pages -->
+    <div class="section" id="section-pages">
+        <h2 class="section-title">📱 صفحات (Pages)</h2>
+        <div class="files-grid" id="page-files"></div>
+    </div>
+    
+    <!-- بخش Components -->
+    <div class="section" id="section-components">
+        <h2 class="section-title">🎨 کامپوننت‌ها (Components)</h2>
+        <div class="files-grid" id="component-files"></div>
+    </div>
+    
+    <!-- بخش Assets & Config -->
+    <div class="section" id="section-assets">
+        <h2 class="section-title">⚙️ منابع و پیکربندی</h2>
+        <div class="files-grid" id="asset-files"></div>
+    </div>
+    
+    <div class="log-container" id="logContainer">
+        <h3 style="color:#94a3b8; margin-bottom:15px;">📝 لاگ سیستم</h3>
+        <div id="logEntries"></div>
+    </div>
+    
+    <script>
+        // ==================== CONFIGURATION - لیست کامل ۳۴ فایل ====================
+        const PROJECT_STRUCTURE = {
+            core: [
+                { name: 'event_bus.js', path: 'core/event_bus.js', testFn: 'window.eventBus.emit("test", {data: "test"})' },
+                { name: 'state_manager.js', path: 'core/state_manager.js', testFn: 'window.stateManager.set("test", "value")' },
+                { name: 'context_provider.js', path: 'core/context_provider.js', testFn: 'window.appContext.register("test", class Test {})' },
+                { name: 'api_client.js', path: 'core/api_client.js', testFn: 'window.apiClient.get("/test")' },
+                { name: 'router_middleware.js', path: 'core/router_middleware.js', testFn: 'window.routerMiddleware.process({path: "/"})' },
+                { name: 'guards.js', path: 'core/guards.js', testFn: 'window.guards.checkRouteAccess("/", {})' },
+                { name: 'state.js', path: 'core/state.js', testFn: 'window.state.set("test", 1)' },
+                { name: 'router.js', path: 'core/router.js', testFn: 'window.router.navigate("/home")' },
+                { name: 'database.js', path: 'core/database.js', testFn: 'window.database.get("test")' },
+                { name: 'api.js', path: 'core/api.js', testFn: 'window.api.request("/test")' },
+                { name: 'utils.js', path: 'core/utils.js', testFn: 'window.utils.generateId()' },
+                { name: 'config.js', path: 'core/config.js', testFn: 'window.config.get("app")' },
+                { name: 'font_manager.js', path: 'core/font_manager.js', testFn: 'window.fontManager.load("vazirmatn")' }
+            ],
+            modules: {
+                auth: [
+                    { name: 'auth_manager.js', path: 'modules/auth/auth_manager.js', testFn: 'window.authManager.login("test", "pass")' },
+                    { name: 'token_manager.js', path: 'modules/auth/token_manager.js', testFn: 'window.tokenManager.validateToken("test")' },
+                    { name: 'auth_middleware.js', path: 'modules/auth/auth_middleware.js', testFn: 'window.authMiddleware.authenticate({})' }
+                ],
+                lessons: [
+                    { name: 'lesson_engine.js', path: 'modules/lessons/lesson_engine.js', testFn: 'window.lessonEngine.getAvailableLessons()' },
+                    { name: 'lesson_content.js', path: 'modules/lessons/lesson_content.js', testFn: 'window.lessonContent.load(1)' },
+                    { name: 'lesson_progress.js', path: 'modules/lessons/lesson_progress.js', testFn: 'window.lessonProgress.save(1, 80)' }
+                ]
+            },
+            pages: {
+                auth: [
+                    { name: 'auth_page.js', path: 'pages/auth/page.js', testFn: 'window.authPage.render()' },
+                    { name: 'auth_view.js', path: 'pages/auth/view.js', testFn: 'window.authView.showLogin()' },
+                    { name: 'auth_controller.js', path: 'pages/auth/controller.js', testFn: 'window.authController.handleSubmit()' }
+                ],
+                home: [
+                    { name: 'home_page.js', path: 'pages/home/page.js', testFn: 'window.homePage.render()' },
+                    { name: 'home_view.js', path: 'pages/home/view.js', testFn: 'window.homeView.showDashboard()' },
+                    { name: 'home_controller.js', path: 'pages/home/controller.js', testFn: 'window.homeController.loadData()' }
+                ]
+            },
+            components: [
+                { name: 'Button.js', path: 'components/Button.js', testFn: 'window.ButtonComponent.render("تست")' },
+                { name: 'Card.js', path: 'components/Card.js', testFn: 'window.CardComponent.create({title: "تست"})' },
+                { name: 'Input.js', path: 'components/Input.js', testFn: 'window.InputComponent.create({type: "text"})' },
+                { name: 'Modal.js', path: 'components/Modal.js', testFn: 'window.ModalComponent.show("تست")' },
+                { name: 'ProgressBar.js', path: 'components/ProgressBar.js', testFn: 'window.ProgressBarComponent.create(50)' }
+            ],
+            assets: [
+                { name: 'vazirmatn.css', path: 'assets/fonts/vazirmatn.css', type: 'css' },
+                { name: 'app.js', path: 'app.js', testFn: 'window.VakamovaApp.init()' },
+                { name: 'main.js', path: 'main.js', testFn: 'window.mainModule.initialize()' },
+                { name: 'module.config.json', path: 'module.config.json', type: 'json' }
+            ]
+        };
+        
+        // ==================== GLOBAL STATE ====================
+        const AppState = {
+            loadedFiles: new Map(),
+            testResults: new Map(),
+            totalFiles: 0,
+            stats: { loaded: 0, tested: 0, passed: 0, failed: 0 }
+        };
+        
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            calculateTotalFiles();
+            renderAllSections();
+            updateStats();
+            log('🚀 تستر مرکزی Vakamova آماده شد. ۳۴ فایل شناسایی شدند.', 'info');
+        });
+        
+        // ==================== RENDERING ====================
+        function renderAllSections() {
+            renderSection('core', PROJECT_STRUCTURE.core);
+            renderSection('modules', [...PROJECT_STRUCTURE.modules.auth, ...PROJECT_STRUCTURE.modules.lessons]);
+            renderSection('pages', [...PROJECT_STRUCTURE.pages.auth, ...PROJECT_STRUCTURE.pages.home]);
+            renderSection('components', PROJECT_STRUCTURE.components);
+            renderSection('assets', PROJECT_STRUCTURE.assets);
+        }
+        
+        function renderSection(sectionId, files) {
+            const container = document.getElementById(`${sectionId}-files`);
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            files.forEach(file => {
+                const fileId = file.path.replace(/\//g, '_').replace('.', '_');
+                const card = document.createElement('div');
+                card.className = 'file-card pending';
+                card.id = `card-${fileId}`;
+                card.innerHTML = `
+                    <div class="file-header">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-badge" id="badge-${fileId}">در انتظار</div>
+                    </div>
+                    <div class="file-path">${file.path}</div>
+                    <button class="test-btn" onclick="testSingleFile('${fileId}', '${file.path}', ${file.testFn ? `'${file.testFn}'` : 'null'}, '${file.type || 'js'}')" id="btn-${fileId}">
+                        اجرای تست
+                    </button>
+                    <div class="result-box" id="result-${fileId}"></div>
+                `;
+                container.appendChild(card);
+            });
+        }
+        
+        // ==================== FILE LOADING ====================
+        async function loadAllFiles() {
+            log('📂 شروع بارگذاری همه فایل‌ها...', 'info');
+            
+            const allFiles = getAllFilesArray();
+            AppState.stats.loaded = 0;
+            
+            // ابتدا Core ها
+            for (const file of allFiles.filter(f => f.category === 'core')) {
+                await loadSingleFile(file);
+            }
+            
+            // سپس Modules
+            for (const file of allFiles.filter(f => f.category === 'modules')) {
+                await loadSingleFile(file);
+            }
+            
+            // بعد Pages
+            for (const file of allFiles.filter(f => f.category === 'pages')) {
+                await loadSingleFile(file);
+            }
+            
+            // سپس Components
+            for (const file of allFiles.filter(f => f.category === 'components')) {
+                await loadSingleFile(file);
+            }
+            
+            // در نهایت Assets
+            for (const file of allFiles.filter(f => f.category === 'assets')) {
+                await loadSingleFile(file);
+            }
+            
+            log(`✅ بارگذاری کامل شد: ${AppState.stats.loaded} از ${AppState.totalFiles} فایل`, 'success');
+            updateStats();
+        }
+        
+        async function loadSingleFile(file) {
+            const fileId = file.path.replace(/\//g, '_').replace('.', '_');
+            
+            try {
+                if (file.type === 'css') {
+                    await loadCSS(file.path);
+                } else if (file.type === 'json') {
+                    await fetch(file.path);
+                } else {
+                    await loadScript(file.path);
+                }
+                
+                AppState.loadedFiles.set(file.path, true);
+                AppState.stats.loaded++;
+                
+                updateCardStatus(fileId, 'loaded', 'بارگذاری شد');
+                log(`✅ ${file.name} بارگذاری شد`, 'success');
+                
+            } catch (error) {
+                AppState.loadedFiles.set(file.path, false);
+                updateCardStatus(fileId, 'error', 'خطا در بارگذاری');
+                log(`❌ خطا در بارگذاری ${file.name}: ${error.message}`, 'error');
+            }
+        }
+        
+        // ==================== TESTING ====================
+        async function runAllTests() {
+            log('⚡ شروع اجرای همه تست‌ها...', 'info');
+            AppState.stats.tested = AppState.stats.passed = AppState.stats.failed = 0;
+            
+            const allFiles = getAllFilesArray();
+            
+            for (const file of allFiles) {
+                if (!file.testFn) continue;
+                
+                const fileId = file.path.replace(/\//g, '_').replace('.', '_');
+                await testSingleFile(fileId, file.path, file.testFn, file.type || 'js');
+                await delay(200); // تأخیر برای نمایش بهتر
+            }
+            
+            log(`📊 تست کامل شد: ${AppState.stats.passed} موفق، ${AppState.stats.failed} ناموفق`, 'info');
+            updateStats();
+        }
+        
+        async function testSingleFile(fileId, filePath, testFn, fileType) {
+            if (fileType === 'css' || fileType === 'json') {
+                updateTestResult(fileId, true, 'فایل استاتیک - نیاز به تست دستی ندارد');
+                return;
+            }
+            
+            const btn = document.getElementById(`btn-${fileId}`);
+            btn.disabled = true;
+            btn.textContent = 'در حال تست...';
+            
+            try {
+                if (!AppState.loadedFiles.get(filePath)) {
+                    throw new Error('فایل ابتدا باید بارگذاری شود');
+                }
+                
+                // اجرای تابع تست
+                let result;
+                if (testFn) {
+                    result = await eval(`(${testFn})`).catch(e => { throw e; });
+                } else {
+                    result = { success: true, message: 'تست اولیه موفق' };
+                }
+                
+                AppState.testResults.set(filePath, { success: true, result });
+                AppState.stats.tested++;
+                AppState.stats.passed++;
+                
+                updateTestResult(fileId, true, result?.message || 'تست موفقیت‌آمیز بود');
+                log(`✅ تست ${filePath} موفق بود`, 'success');
+                
+            } catch (error) {
+                AppState.testResults.set(filePath, { success: false, error: error.message });
+                AppState.stats.tested++;
+                AppState.stats.failed++;
+                
+                updateTestResult(fileId, false, error.message);
+                log(`❌ تست ${filePath} ناموفق: ${error.message}`, 'error');
+                
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'اجرای تست مجدد';
+                updateStats();
+            }
+        }
+        
+        // ==================== UTILITIES ====================
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.type = 'module';
+                script.onload = resolve;
+                script.onerror = () => reject(new Error(`خطا در بارگذاری ${src}`));
+                document.head.appendChild(script);
+            });
+        }
+        
+        function loadCSS(href) {
+            return new Promise((resolve, reject) => {
+                const link = document.createElement('link');
+                link.rel = 'stylesheet';
+                link.href = href;
+                link.onload = resolve;
+                link.onerror = () => reject(new Error(`خطا در بارگذاری ${href}`));
+                document.head.appendChild(link);
+            });
+        }
+        
+        function updateCardStatus(fileId, status, badgeText) {
+            const card = document.getElementById(`card-${fileId}`);
+            const badge = document.getElementById(`badge-${fileId}`);
+            
+            if (card && badge) {
+                card.className = `file-card ${status}`;
+                badge.textContent = badgeText;
+                badge.style.background = 
+                    status === 'loaded' ? '#10b981' :
+                    status === 'error' ? '#ef4444' :
+                    status === 'pending' ? '#f59e0b' : '#475569';
+            }
+        }
+        
+        function updateTestResult(fileId, success, message) {
+            const resultBox = document.getElementById(`result-${fileId}`);
+            if (!resultBox) return;
+            
+            resultBox.className = `result-box ${success ? 'result-success' : 'result-error'}`;
+            resultBox.textContent = message;
+            resultBox.style.display = 'block';
+            
+            updateCardStatus(fileId, success ? 'loaded' : 'error', success ? 'موفق' : 'ناموفق');
+        }
+        
+        function log(message, type = 'info') {
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            
+            const timestamp = new Date().toLocaleTimeString('fa-IR');
+            const typeIcon = type === 'success' ? '✅' : type === 'error' ? '❌' : '📝';
+            
+            logEntry.innerHTML = `
+                <span style="color: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#94a3b8'}">
+                    ${typeIcon} ${message}
+                </span>
+                <span class="log-time">${timestamp}</span>
+            `;
+            
+            document.getElementById('logEntries').prepend(logEntry);
+            console.log(`[${type}] ${message}`);
+        }
+        
+        function calculateTotalFiles() {
+            AppState.totalFiles = 
+                PROJECT_STRUCTURE.core.length +
+                PROJECT_STRUCTURE.modules.auth.length +
+                PROJECT_STRUCTURE.modules.lessons.length +
+                PROJECT_STRUCTURE.pages.auth.length +
+                PROJECT_STRUCTURE.pages.home.length +
+                PROJECT_STRUCTURE.components.length +
+                PROJECT_STRUCTURE.assets.length;
+        }
+        
+        function getAllFilesArray() {
+            return [
+                ...PROJECT_STRUCTURE.core.map(f => ({...f, category: 'core'})),
+                ...PROJECT_STRUCTURE.modules.auth.map(f => ({...f, category: 'modules'})),
+                ...PROJECT_STRUCTURE.modules.lessons.map(f => ({...f, category: 'modules'})),
+                ...PROJECT_STRUCTURE.pages.auth.map(f => ({...f, category: 'pages'})),
+                ...PROJECT_STRUCTURE.pages.home.map(f => ({...f, category: 'pages'})),
+                ...PROJECT_STRUCTURE.components.map(f => ({...f, category: 'components'})),
+                ...PROJECT_STRUCTURE.assets.map(f => ({...f, category: 'assets'}))
+            ];
+        }
+        
+        function updateStats() {
+            const statsBar = document.getElementById('statsBar');
+            if (!statsBar) return;
+            
+            statsBar.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${AppState.totalFiles}</div>
+                    <div class="stat-label">کل فایل‌ها</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${AppState.stats.loaded}</div>
+                    <div class="stat-label">بارگذاری شده</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${AppState.stats.tested}</div>
+                    <div class="stat-label">تست شده</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" style="color: ${AppState.stats.failed > 0 ? '#ef4444' : '#10b981'}">
+                        ${AppState.stats.passed}/${AppState.stats.tested || 0}
+                    </div>
+                    <div class="stat-label">موفق/ناموفق</div>
+                </div>
+            `;
+        }
+        
+        function clearResults() {
+            AppState.loadedFiles.clear();
+            AppState.testResults.clear();
+            AppState.stats = { loaded: 0, tested: 0, passed: 0, failed: 0 };
+            
+            renderAllSections();
+            updateStats();
+            document.getElementById('logEntries').innerHTML = '';
+            log('🗑️ همه نتایج پاک شدند.', 'info');
+        }
+        
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+  </html>
