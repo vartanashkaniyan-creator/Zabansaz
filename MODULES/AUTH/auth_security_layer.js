@@ -143,3 +143,4 @@ export class AuthSecurityLayer {
         return `${masked}@${domain}`;
     }
 }
+window.AuthPersistence = AuthPersistence;
