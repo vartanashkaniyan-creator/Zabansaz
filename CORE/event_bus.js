@@ -611,9 +611,37 @@ class EventBusFactory {
   }
 }
 
-// ==================== EXPORTS ====================
-// Singleton instance for global use (YAGNI: فقط اگر واقعاً نیاز است)
+
+
+
+// Singleton instance برای استفاده global
 const globalEventBus = EventBusFactory.createDefault();
+
+// برای جلوگیری از تغییرات ناخواسته
+Object.freeze(globalEventBus);
+
+// قرار دادن همه کلاس‌ها در window برای دسترسی در مرورگر
+window.IEventBus = IEventBus;
+window.ILogger = ILogger;
+window.IValidator = IValidator;
+window.IEventMetrics = IEventMetrics;
+window.HyperEventBus = HyperEventBus;
+window.ConsoleLogger = ConsoleLogger;
+window.EventValidator = EventValidator;
+window.EventMetrics = EventMetrics;
+window.EventBusFactory = EventBusFactory;
+window.globalEventBus = globalEventBus;
+
+// برای backward compatibility با کد موجود
+window.eventBus = globalEventBus;
+
+// لاگ برای اطلاع از بارگذاری موفق
+console.log('✅ HyperEventBus با موفقیت بارگذاری شد!');
+console.log('📦 موجود در window: HyperEventBus, eventBus, globalEventBus');
+
+
+// برای backward compatibility با کد موجود
+window.eventBus = globalEventBus;.createDefault();
 
 // برای جلوگیری از تغییرات ناخواسته
 Object.freeze(globalEventBus);
@@ -624,7 +652,6 @@ export {
   ILogger,
   IValidator,
   IEventMetrics,
-  
   // Implementations
   HyperEventBus,
   ConsoleLogger,
