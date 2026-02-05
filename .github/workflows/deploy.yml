@@ -1,21 +1,110 @@
-name: Deploy to GitHub Pages
+name: 🚀 Deploy Vakamova to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  workflow_dispatch:  # امکان اجرای دستی
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout
+      # 1. دریافت کد
+      - name: 📥 Checkout Repository
         uses: actions/checkout@v4
-      
-      - name: Deploy
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      # 2. لیست فایل‌ها برای لاگ
+      - name: 📋 List All Files
+        run: |
+          echo "📁 ساختار پروژه Vakamova:"
+          find . -type f -name "*.js" -o -name "*.html" -o -name "*.json" | sort
+          echo ""
+          echo "📦 حجم پوشه core:"
+          du -sh core/ || echo "پوشه core وجود ندارد"
+          echo "📦 حجم پوشه modules:"
+          du -sh modules/ || echo "پوشه modules وجود ندارد"
+          echo "📦 حجم پوشه pages:"
+          du -sh pages/ || echo "پوشه pages وجود ندارد"
+          
+      # 3. ایجاد فایل .nojekyll (مهم!)
+      - name: 🛡️ Create .nojekyll File
+        run: |
+          touch .nojekyll
+          echo "فایل .nojekyll ایجاد شد"
+          
+      # 4. ایجاد فایل CNAME (اختیاری)
+      - name: 🌐 Create CNAME File
+        run: |
+          echo "vartanashkaniyan-creator.github.io" > CNAME
+          
+      # 5. اعتبارسنجی فایل‌های JS
+      - name: 🔍 Validate JavaScript Files
+        run: |
+          echo "بررسی فایل‌های اصلی:"
+          
+          # بررسی وجود فایل‌های core
+          if [ -f "core/event_bus.js" ]; then
+            echo "✅ core/event_bus.js موجود است"
+            head -5 core/event_bus.js
+          else
+            echo "❌ core/event_bus.js یافت نشد!"
+            exit 1
+          fi
+          
+          if [ -f "modules/auth/auth_manager.js" ]; then
+            echo "✅ modules/auth/auth_manager.js موجود است"
+          else
+            echo "⚠️ modules/auth/auth_manager.js یافت نشد"
+          fi
+          
+      # 6. پیکربندی Git
+      - name: ⚙️ Setup Git Configuration
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+      # 7. آپلود به GitHub Pages
+      - name: 🚀 Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: .
+          publish_dir: ./  # کل دایرکتوری فعلی
+          publish_branch: gh-pages  # شاخه هدف
+          force_orphan: true  # پاک کردن تاریخچه قبلی
+          enable_jekyll: false  # غیرفعال کردن Jekyll
+          cname: vartanashkaniyan-creator.github.io
+          
+      # 8. تأیید آپلود
+      - name: ✅ Verify Deployment
+        run: |
+          echo "🎉 استقرار کامل شد!"
+          echo "🌐 آدرس پروژه: https://vartanashkaniyan-creator.github.io/Zabansaz/"
+          echo ""
+          echo "📂 فایل‌های آپلود شده:"
+          echo "- https://vartanashkaniyan-creator.github.io/Zabansaz/index.html"
+          echo "- https://vartanashkaniyan-creator.github.io/Zabansaz/core/event_bus.js"
+          echo "- https://vartanashkaniyan-creator.github.io/Zabansaz/modules/auth/auth_manager.js"
+          echo "- https://vartanashkaniyan-creator.github.io/Zabansaz/integration_test.html"
+          
+      # 9. خروجی URL
+      - name: 📤 Set Deployment URL
+        id: deployment
+        run: |
+          echo "page_url=https://vartanashkaniyan-creator.github.io/Zabansaz/" >> $GITHUB_OUTPUT
