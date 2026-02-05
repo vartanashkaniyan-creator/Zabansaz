@@ -15,6 +15,7 @@
     <h2>⚙️ تست ماژول‌های Core</h2>
     <button onclick="testEventBus()">تست Event Bus</button>
     <button onclick="testDatabase()">تست Database</button>
+    <button onclick="testRouter()">تست Router</button>
     <button onclick="testAll()">تست کامل Core</button>
     <div id="results"></div>
 
@@ -38,12 +39,10 @@
         function testEventBus() {
             results.innerHTML = '<h3>📡 تست Event Bus</h3>';
             
-            // روش ۱: بررسی global
             if (typeof window.eventBus !== 'undefined') {
                 showResult('event_bus.js', '✅ فایل لود شد (eventBus)', 'success');
                 
                 try {
-                    // تست عملیاتی
                     let received = false;
                     eventBus.on('core-test', (data) => {
                         if (data.message === 'hello') received = true;
@@ -78,11 +77,9 @@
                 showResult('db.js', '✅ فایل لود شد (VakamovaDatabase)', 'success');
                 
                 try {
-                    // تست نمونه‌سازی
                     const db = new VakamovaDatabase();
                     showResult('db.js', '✅ نمونه‌سازی موفق', 'success');
                     
-                    // تست متدهای اصلی
                     const methods = ['connect', 'query', 'close'];
                     methods.forEach(method => {
                         if (typeof db[method] === 'function') {
@@ -104,10 +101,43 @@
             }
         }
 
+        function testRouter() {
+            results.innerHTML = '<h3>🛣️ تست Router</h3>';
+            
+            if (typeof window.router !== 'undefined') {
+                showResult('router.js', '✅ فایل لود شد (router)', 'success');
+                
+                try {
+                    // تست متدهای اصلی
+                    const methods = ['init', 'navigate', 'getCurrentRoute'];
+                    methods.forEach(method => {
+                        if (typeof router[method] === 'function') {
+                            showResult('router.js', `✅ متد ${method}() موجود است`, 'success');
+                        } else {
+                            showResult('router.js', `⚠️ متد ${method}() یافت نشد`, 'warning');
+                        }
+                    });
+                    
+                    // تست کلاس سازنده
+                    if (typeof window.VakamovaRouter !== 'undefined') {
+                        showResult('router.js', '✅ کلاس VakamovaRouter موجود است', 'success');
+                    }
+                    
+                } catch (error) {
+                    showResult('router.js', `❌ خطا در تست: ${error.message}`, 'error');
+                }
+            } 
+            else if (typeof window.VakamovaRouter !== 'undefined') {
+                showResult('router.js', '✅ فایل لود شد (VakamovaRouter)', 'success');
+            }
+            else {
+                showResult('router.js', '❌ هیچ متغیر global یافت نشد', 'error');
+            }
+        }
+
         function testAll() {
             results.innerHTML = '<h3>🎯 تست کامل ماژول Core</h3>';
             
-            // لیست ماژول‌ها و نام‌های global آنها
             const modules = [
                 { name: 'utils.js', vars: ['utils', 'VakamovaUtils'] },
                 { name: 'event_bus.js', vars: ['eventBus', 'HyperEventBus'] },
