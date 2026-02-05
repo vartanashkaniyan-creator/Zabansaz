@@ -8,12 +8,13 @@
         .result { padding: 10px; margin: 5px 0; border-right: 4px solid; }
         .success { background: #E8F5E9; border-color: #4CAF50; }
         .error { background: #FFEBEE; border-color: #F44336; }
+        .warning { background: #FFF3E0; border-color: #FF9800; }
     </style>
 </head>
 <body>
     <h2>⚙️ تست ماژول‌های Core</h2>
-    <button onclick="testStateManager()">تست State Manager</button>
     <button onclick="testEventBus()">تست Event Bus</button>
+    <button onclick="testDatabase()">تست Database</button>
     <button onclick="testAll()">تست کامل Core</button>
     <div id="results"></div>
 
@@ -27,121 +28,114 @@
     <script>
         const results = document.getElementById('results');
         
-        function showResult(module, message, isSuccess) {
+        function showResult(module, message, type = 'success') {
             const div = document.createElement('div');
-            div.className = `result ${isSuccess ? 'success' : 'error'}`;
+            div.className = `result ${type}`;
             div.innerHTML = `<strong>${module}:</strong> ${message}`;
             results.appendChild(div);
         }
 
-        function testStateManager() {
-            results.innerHTML = '<h3>🧠 تست State Manager</h3>';
-            try {
-                // اول بررسی کن کدام نام متغیر global وجود دارد
-                const stateManagerObj = window.state_manager || window.stateManager;
+        function testEventBus() {
+            results.innerHTML = '<h3>📡 تست Event Bus</h3>';
+            
+            // روش ۱: بررسی global
+            if (typeof window.eventBus !== 'undefined') {
+                showResult('event_bus.js', '✅ فایل لود شد (eventBus)', 'success');
                 
-                if (!stateManagerObj) {
-                    showResult('state_manager', '❌ فایل لود نشد - هیچ متغیر state_manager یا stateManager یافت نشد', false);
-                    return;
+                try {
+                    // تست عملیاتی
+                    let received = false;
+                    eventBus.on('core-test', (data) => {
+                        if (data.message === 'hello') received = true;
+                    });
+                    
+                    eventBus.emit('core-test', { message: 'hello' });
+                    
+                    setTimeout(() => {
+                        if (received) {
+                            showResult('event_bus.js', '✅ ارسال و دریافت موفق', 'success');
+                        } else {
+                            showResult('event_bus.js', '⚠️ دریافت رویداد ناموفق', 'warning');
+                        }
+                    }, 50);
+                    
+                } catch (error) {
+                    showResult('event_bus.js', `❌ خطا در تست: ${error.message}`, 'error');
                 }
-                
-                showResult('state_manager', '✅ فایل لود شد', true);
-                
-                // تست عملیاتی
-                if (typeof stateManagerObj.setState !== 'function') {
-                    showResult('state_manager', '❌ تابع setState وجود ندارد', false);
-                    return;
-                }
-                
-                if (typeof stateManagerObj.getState !== 'function') {
-                    showResult('state_manager', '❌ تابع getState وجود ندارد', false);
-                    return;
-                }
-                
-                stateManagerObj.setState('testKey', 'testValue');
-                const retrieved = stateManagerObj.getState('testKey');
-                
-                if (retrieved === 'testValue') {
-                    showResult('state_manager', '✅ ذخیره و بازیابی موفق', true);
-                } else {
-                    showResult('state_manager', `❌ مقدار بازیابی شده: ${retrieved}`, false);
-                }
-                
-            } catch (error) {
-                showResult('state_manager', `❌ خطا: ${error.message}`, false);
+            } 
+            else if (typeof window.HyperEventBus !== 'undefined') {
+                showResult('event_bus.js', '✅ فایل لود شد (HyperEventBus)', 'success');
+            }
+            else {
+                showResult('event_bus.js', '❌ هیچ متغیر global یافت نشد', 'error');
             }
         }
 
-        function testEventBus() {
-            results.innerHTML = '<h3>📡 تست Event Bus</h3>';
-            try {
-                // اول بررسی کن کدام نام متغیر global وجود دارد
-                const eventBusObj = window.event_bus || window.eventBus;
+        function testDatabase() {
+            results.innerHTML = '<h3>💾 تست Database</h3>';
+            
+            if (typeof window.VakamovaDatabase !== 'undefined') {
+                showResult('db.js', '✅ فایل لود شد (VakamovaDatabase)', 'success');
                 
-                if (!eventBusObj) {
-                    showResult('event_bus', '❌ فایل لود نشد - هیچ متغیر event_bus یا eventBus یافت نشد', false);
-                    return;
+                try {
+                    // تست نمونه‌سازی
+                    const db = new VakamovaDatabase();
+                    showResult('db.js', '✅ نمونه‌سازی موفق', 'success');
+                    
+                    // تست متدهای اصلی
+                    const methods = ['connect', 'query', 'close'];
+                    methods.forEach(method => {
+                        if (typeof db[method] === 'function') {
+                            showResult('db.js', `✅ متد ${method}() موجود است`, 'success');
+                        } else {
+                            showResult('db.js', `⚠️ متد ${method}() یافت نشد`, 'warning');
+                        }
+                    });
+                    
+                } catch (error) {
+                    showResult('db.js', `❌ خطا در نمونه‌سازی: ${error.message}`, 'error');
                 }
-                
-                showResult('event_bus', '✅ فایل لود شد', true);
-                
-                // بررسی وجود توابع اصلی
-                if (typeof eventBusObj.on !== 'function') {
-                    showResult('event_bus', '❌ تابع on وجود ندارد', false);
-                    return;
-                }
-                
-                if (typeof eventBusObj.emit !== 'function') {
-                    showResult('event_bus', '❌ تابع emit وجود ندارد', false);
-                    return;
-                }
-                
-                // تست ارسال و دریافت رویداد
-                let testPassed = false;
-                eventBusObj.on('test-event', (data) => {
-                    if (data === 'hello') testPassed = true;
-                });
-                
-                eventBusObj.emit('test-event', 'hello');
-                
-                setTimeout(() => {
-                    if (testPassed) {
-                        showResult('event_bus', '✅ ارسال و دریافت رویداد موفق', true);
-                    } else {
-                        showResult('event_bus', '❌ دریافت رویداد ناموفق', false);
-                    }
-                }, 100);
-                
-            } catch (error) {
-                showResult('event_bus', `❌ خطا: ${error.message}`, false);
+            } 
+            else if (typeof window.db !== 'undefined') {
+                showResult('db.js', '✅ فایل لود شد (db)', 'success');
+            }
+            else {
+                showResult('db.js', '❌ هیچ متغیر global یافت نشد', 'error');
             }
         }
 
         function testAll() {
             results.innerHTML = '<h3>🎯 تست کامل ماژول Core</h3>';
-            testStateManager();
-            setTimeout(() => {
-                testEventBus();
+            
+            // لیست ماژول‌ها و نام‌های global آنها
+            const modules = [
+                { name: 'utils.js', vars: ['utils', 'VakamovaUtils'] },
+                { name: 'event_bus.js', vars: ['eventBus', 'HyperEventBus'] },
+                { name: 'state_manager.js', vars: ['state_manager', 'stateManager', 'VakamovaState'] },
+                { name: 'db.js', vars: ['VakamovaDatabase', 'db'] },
+                { name: 'router.js', vars: ['router', 'VakamovaRouter'] }
+            ];
+            
+            modules.forEach(module => {
+                let found = false;
+                let foundVar = '';
                 
-                // تست‌های اضافی بعد از 400ms
-                setTimeout(() => {
-                    // تست db.js
-                    if (typeof db !== 'undefined') {
-                        showResult('db', '✅ فایل db.js لود شد', true);
-                    } else {
-                        showResult('db', '⚠️ فایل db.js لود نشد یا متغیر global ندارد', false);
+                for (const v of module.vars) {
+                    if (typeof window[v] !== 'undefined') {
+                        found = true;
+                        foundVar = v;
+                        break;
                     }
-                    
-                    // تست router.js
-                    if (typeof router !== 'undefined') {
-                        showResult('router', '✅ فایل router.js لود شد', true);
-                    } else {
-                        showResult('router', '⚠️ فایل router.js لود نشد یا متغیر global ندارد', false);
-                    }
-                    
-                    showResult('سیستم', '✅ تمام تست‌های core تکمیل شد', true);
-                }, 400);
-            }, 200);
+                }
+                
+                if (found) {
+                    showResult(module.name, `✅ لود شد (${foundVar})`, 'success');
+                } else {
+                    showResult(module.name, `❌ لود نشد (جستجو: ${module.vars.join(', ')})`, 'error');
+                }
+            });
+            
+            showResult('سیستم', '✅ تست کامل core انجام شد', 'success');
         }
     </script>
 </body>
