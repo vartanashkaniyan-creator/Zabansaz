@@ -584,3 +584,4 @@ if (typeof window !== 'undefined') {
 }
 
 console.log('[PermissionChecker] ✅ ماژول مجوزها بارگذاری شد');
+window.AuthPersistence = AuthPersistence;
