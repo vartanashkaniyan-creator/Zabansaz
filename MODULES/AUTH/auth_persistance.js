@@ -75,3 +75,5 @@ export class AuthPersistence {
         return atob(encrypted);
     }
 }
+
+window.AuthPersistence = AuthPersistence;
