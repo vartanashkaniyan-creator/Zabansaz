@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تست ساده Database</title>
+    <style>
+        body { font-family: Tahoma; margin: 20px; }
+        button { padding: 15px; margin: 10px; cursor: pointer; font-size: 16px; }
+        #output { margin-top: 20px; padding: 15px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <h1>تست ساده Database</h1>
+    
+    <button onclick="testAddGet()">تست افزودن و خواندن</button>
+    <button onclick="testUpdate()">تست به‌روزرسانی</button>
+    <button onclick="testDelete()">تست حذف</button>
+    
+    <div id="output">روی دکمه‌ها کلیک کنید...</div>
+
+    <script>
+        // تست ساده IndexedDB بدون ماژول
+        window.testAddGet = function() {
+            const output = document.getElementById('output');
+            output.innerHTML = 'در حال اجرای تست...';
+            
+            const dbName = 'SimpleTestDB_' + Date.now();
+            const request = indexedDB.open(dbName, 1);
+            
+            request.onerror = function(event) {
+                output.innerHTML = '❌ خطا در باز کردن دیتابیس';
+            };
+            
+            request.onsuccess = function(event) {
+                const db = event.target.result;
+                output.innerHTML = '✅ دیتابیس باز شد';
+                
+                // افزودن داده
+                const transaction = db.transaction(['test'], 'readwrite');
+                const store = transaction.objectStore('test');
+                
+                const addRequest = store.add({ id: 1, name: 'آیتم تست', value: 100 });
+                
+                addRequest.onsuccess = function() {
+                    // خواندن داده
+                    const getTransaction = db.transaction(['test'], 'readonly');
+                    const getStore = getTransaction.objectStore('test');
+                    const getRequest = getStore.get(1);
+                    
+                    getRequest.onsuccess = function() {
+                        output.innerHTML = `
+                            <h3>✅ افزودن و خواندن موفق</h3>
+                            <p>داده ذخیره شد و خوانده شد:</p>
+                            <pre>${JSON.stringify(getRequest.result, null, 2)}</pre>
+                            <p>✓ افزودن کار کرد</p>
+                            <p>✓ خواندن کار کرد</p>
+                        `;
+                        
+                        // پاکسازی
+                        db.close();
+                        indexedDB.deleteDatabase(dbName);
+                    };
+                };
+            };
+            
+            request.onupgradeneeded = function(event) {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('test')) {
+                    db.createObjectStore('test', { keyPath: 'id' });
+                }
+            };
+        };
+        
+        window.testUpdate = function() {
+            const output = document.getElementById('output');
+            output.innerHTML = 'در حال اجرای تست...';
+            
+            const dbName = 'UpdateTestDB_' + Date.now();
+            const request = indexedDB.open(dbName, 1);
+            
+            request.onerror = function(event) {
+                output.innerHTML = '❌ خطا در باز کردن دیتابیس';
+            };
+            
+            request.onsuccess = function(event) {
+                const db = event.target.result;
+                
+                // ابتدا یک داده اضافه می‌کنیم
+                const transaction = db.transaction(['test'], 'readwrite');
+                const store = transaction.objectStore('test');
+                
+                store.add({ id: 1, name: 'قدیمی', value: 50 });
+                
+                transaction.oncomplete = function() {
+                    // حالا به‌روزرسانی می‌کنیم
+                    const updateTransaction = db.transaction(['test'], 'readwrite');
+                    const updateStore = updateTransaction.objectStore('test');
+                    
+                    const updateRequest = updateStore.put({ id: 1, name: 'جدید', value: 75 });
+                    
+                    updateRequest.onsuccess = function() {
+                        // خواندن داده به‌روزرسانی شده
+                        const getTransaction = db.transaction(['test'], 'readonly');
+                        const getStore = getTransaction.objectStore('test');
+                        const getRequest = getStore.get(1);
+                        
+                        getRequest.onsuccess = function() {
+                            output.innerHTML = `
+                                <h3>✅ به‌روزرسانی موفق</h3>
+                                <p>داده به‌روزرسانی شد:</p>
+                                <pre>${JSON.stringify(getRequest.result, null, 2)}</pre>
+                                <p>✓ مقدار value از ۵۰ به ۷۵ تغییر کرد</p>
+                                <p>✓ نام از "قدیمی" به "جدید" تغییر کرد</p>
+                            `;
+                            
+                            // پاکسازی
+                            db.close();
+                            indexedDB.deleteDatabase(dbName);
+                        };
+                    };
+                };
+            };
+            
+            request.onupgradeneeded = function(event) {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('test')) {
+                    db.createObjectStore('test', { keyPath: 'id' });
+                }
+            };
+        };
+        
+        window.testDelete = function() {
+            const output = document.getElementById('output');
+            output.innerHTML = 'در حال اجرای تست...';
+            
+            const dbName = 'DeleteTestDB_' + Date.now();
+            const request = indexedDB.open(dbName, 1);
+            
+            request.onerror = function(event) {
+                output.innerHTML = '❌ خطا در باز کردن دیتابیس';
+            };
+            
+            request.onsuccess = function(event) {
+                const db = event.target.result;
+                
+                // اضافه کردن چند داده
+                const transaction = db.transaction(['test'], 'readwrite');
+                const store = transaction.objectStore('test');
+                
+                store.add({ id: 1, name: 'آیتم ۱' });
+                store.add({ id: 2, name: 'آیتم ۲' });
+                store.add({ id: 3, name: 'آیتم ۳' });
+                
+                transaction.oncomplete = function() {
+                    // حذف آیتم ۲
+                    const deleteTransaction = db.transaction(['test'], 'readwrite');
+                    const deleteStore = deleteTransaction.objectStore('test');
+                    
+                    const deleteRequest = deleteStore.delete(2);
+                    
+                    deleteRequest.onsuccess = function() {
+                        // شمارش آیتم‌های باقی‌مانده
+                        const countTransaction = db.transaction(['test'], 'readonly');
+                        const countStore = countTransaction.objectStore('test');
+                        const countRequest = countStore.count();
+                        
+                        countRequest.onsuccess = function() {
+                            output.innerHTML = `
+                                <h3>✅ حذف موفق</h3>
+                                <p>آیتم با ID 2 حذف شد</p>
+                                <p>تعداد آیتم‌های باقی‌مانده: ${countRequest.result}</p>
+                                <p>✓ حذف کار کرد</p>
+                                <p>✓ فقط آیتم‌های ۱ و ۳ باقی ماندند</p>
+                            `;
+                            
+                            // پاکسازی
+                            db.close();
+                            indexedDB.deleteDatabase(dbName);
+                        };
+                    };
+                };
+            };
+            
+            request.onupgradeneeded = function(event) {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('test')) {
+                    db.createObjectStore('test', { keyPath: 'id' });
+                }
+            };
+        };
+        
+        console.log('✅ تست ساده Database بارگذاری شد');
+    </script>
+</body>
+</html>
