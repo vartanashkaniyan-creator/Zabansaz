@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست ProgressTracker</title>
+    <style>
+        body { font-family: Tahoma; direction: rtl; padding: 20px; background: #f5f7fa; }
+        .test-case { background: white; margin: 10px 0; padding: 15px; border-radius: 8px; border-right: 5px solid #ccc; }
+        .pass { border-right-color: #4CAF50; background: #f0fff4; }
+        .fail { border-right-color: #f44336; background: #fff5f5; }
+        button { padding: 10px 20px; margin: 5px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        code { background: #f1f1f1; padding: 2px 5px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h2>🧪 تست ProgressTracker</h2>
+    <button onclick="runAllTests()">▶️ اجرای همه تست‌ها</button>
+    <div id="results" style="margin-top: 20px;"></div>
+
+    <script>
+        // ==================== ProgressTracker Implementation ====================
+        class IProgressTracker {
+            async startSession(sessionId, userId, lessonId) { throw new Error('Method not implemented'); }
+            async recordExerciseResult(data) { throw new Error('Method not implemented'); }
+            async completeLesson(userId, lessonId, score, startTime, endTime) { throw new Error('Method not implemented'); }
+            async getUserProgress(userId, courseId) { throw new Error('Method not implemented'); }
+            async getUserStats(userId) { throw new Error('Method not implemented'); }
+        }
+
+        class ProgressTracker extends IProgressTracker {
+            constructor({ database, eventBus }) {
+                super();
+                if (!database || !eventBus) throw new Error('Database and EventBus dependencies are required');
+                this._database = database;
+                this._eventBus = eventBus;
+                this._data = {
+                    sessions: [],
+                    exerciseResults: [],
+                    completedLessons: [],
+                    userStats: new Map()
+                };
+            }
+
+            async startSession(sessionId, userId, lessonId) {
+                this._data.sessions.push({
+                    sessionId, userId, lessonId, 
+                    startTime: new Date(), status: 'active'
+                });
+                this._eventBus.publish('progress.session_started', { sessionId, userId, lessonId });
+            }
+
+            async recordExerciseResult(data) {
+                this._data.exerciseResults.push({
+                    ...data,
+                    completedAt: new Date()
+                });
+                
+                // Update user stats
+                const stats = this._data.userStats.get(data.sessionId.split('_')[2]) || {
+                    totalExercises: 0, correctAnswers: 0, totalTime: 0
+                };
+                stats.totalExercises++;
+                if (data.isCorrect) stats.correctAnswers++;
+                stats.totalTime += data.timeSpent;
+                this._data.userStats.set(data.sessionId.split('_')[2], stats);
+                
+                this._eventBus.publish('progress.exercise_completed', data);
+            }
+
+            async completeLesson(userId, lessonId, score, startTime, endTime) {
+                this._data.completedLessons.push({
+                    userId, lessonId, score,
+                    startTime, endTime,
+                    duration: endTime - startTime,
+                    completedAt: new Date()
+                });
+                this._eventBus.publish('progress.lesson_completed', { userId, lessonId, score });
+            }
+
+            async getUserProgress(userId, courseId) {
+                const userLessons = this._data.completedLessons.filter(l => 
+                    l.userId === userId && l.lessonId.startsWith(courseId)
+                );
+                
+                return {
+                    userId,
+                    courseId,
+                    completedLessons: userLessons.length,
+                    totalLessons: 5, // Mock value
+                    overallScore: userLessons.reduce((sum, l) => sum + l.score, 0),
+                    timeSpent: userLessons.reduce((sum, l) => sum + l.duration, 0),
+                    lastActive: new Date(),
+                    completionPercentage: Math.round((userLessons.length / 5) * 100),
+                    averageScore: userLessons.length > 0 ? Math.round(userLessons.reduce((sum, l) => sum + l.score, 0) / userLessons.length) : 0
+                };
+            }
+
+            async getUserStats(userId) {
+                const stats = this._data.userStats.get(userId) || { totalExercises: 0, correctAnswers: 0, totalTime: 0 };
+                const accuracy = stats.totalExercises > 0 ? Math.round((stats.correctAnswers / stats.totalExercises) * 100) : 0;
+                
+                return {
+                    userId,
+                    totalSessions: this._data.sessions.filter(s => s.userId === userId).length,
+                    totalExercises: stats.totalExercises,
+                    totalTime: stats.totalTime,
+                    streakDays: 3, // Mock value
+                    averageAccuracy: accuracy,
+                    favoriteLesson: 'lesson_1',
+                    lastActivity: { time: new Date() }
+                };
+            }
+        }
+
+        // ==================== Mock Dependencies ====================
+        class MockDatabase {
+            constructor() {
+                this.operations = [];
+            }
+            query(table) {
+                return {
+                    insert: (data) => {
+                        this.operations.push({ table, action: 'insert', data });
+                        return Promise.resolve();
+                    },
+                    where: () => this,
+                    andWhere: () => this,
+                    count: () => ({ first: () => ({ count: 0 }) })
+                };
+            }
+            transaction(fn) {
+                return fn(this);
+            }
+        }
+
+        class MockEventBus {
+            constructor() {
+                this.events = [];
+            }
+            publish(event, data) {
+                this.events.push({ event, data, timestamp: new Date() });
+                console.log(`📢 ${event}:`, data);
+            }
+        }
+
+        // ==================== Test Functions ====================
+        let tracker, mockDB, mockEventBus;
+
+        async function runAllTests() {
+            const results = document.getElementById('results');
+            results.innerHTML = '';
+            
+            try {
+                // Test 1: Construction
+                mockDB = new MockDatabase();
+                mockEventBus = new MockEventBus();
+                tracker = new ProgressTracker({ database: mockDB, eventBus: mockEventBus });
+                addResult('✅ تست ۱: ساخت ProgressTracker موفق', 'pass');
+                
+                // Test 2: Start Session
+                await tracker.startSession('sess_123', 'user_1', 'lesson_1');
+                const hasSessionEvent = mockEventBus.events.some(e => e.event === 'progress.session_started');
+                addResult(hasSessionEvent ? '✅ تست ۲: شروع جلسه موفق' : '❌ تست ۲: رویداد منتشر نشد', hasSessionEvent ? 'pass' : 'fail');
+                
+                // Test 3: Record Exercise
+                await tracker.recordExerciseResult({
+                    sessionId: 'sess_123',
+                    exerciseId: 'ex_1',
+                    isCorrect: true,
+                    score: 10,
+                    timeSpent: 30
+                });
+                const hasExerciseEvent = mockEventBus.events.some(e => e.event === 'progress.exercise_completed');
+                addResult(hasExerciseEvent ? '✅ تست ۳: ثبت تمرین موفق' : '❌ تست ۳: ثبت تمرین شکست خورد', hasExerciseEvent ? 'pass' : 'fail');
+                
+                // Test 4: Complete Lesson
+                await tracker.completeLesson('user_1', 'lesson_1', 85, new Date(), new Date());
+                const hasLessonEvent = mockEventBus.events.some(e => e.event === 'progress.lesson_completed');
+                addResult(hasLessonEvent ? '✅ تست ۴: تکمیل درس موفق' : '❌ تست ۴: تکمیل درس شکست خورد', hasLessonEvent ? 'pass' : 'fail');
+                
+                // Test 5: Get User Progress
+                const progress = await tracker.getUserProgress('user_1', 'course_1');
+                const hasProgress = progress && typeof progress.completionPercentage === 'number';
+                addResult(hasProgress ? `✅ تست ۵: دریافت پیشرفت (${progress.completionPercentage}%)` : '❌ تست ۵: دریافت پیشرفت شکست خورد', hasProgress ? 'pass' : 'fail');
+                
+                // Test 6: Get User Stats
+                const stats = await tracker.getUserStats('user_1');
+                const hasStats = stats && typeof stats.averageAccuracy === 'number';
+                addResult(hasStats ? `✅ تست ۶: دریافت آمار (دقت: ${stats.averageAccuracy}%)` : '❌ تست ۶: دریافت آمار شکست خورد', hasStats ? 'pass' : 'fail');
+                
+                // Summary
+                const totalTests = 6;
+                const passed = document.querySelectorAll('.pass').length;
+                addResult(`<br><strong>📊 نتیجه نهایی: ${passed}/${totalTests} تست موفق (${Math.round(passed/totalTests*100)}%)</strong>`, passed === totalTests ? 'pass' : 'fail');
+                
+            } catch (error) {
+                addResult(`❌ خطا در اجرای تست‌ها: ${error.message}`, 'fail');
+            }
+        }
+
+        function addResult(message, className) {
+            const div = document.createElement('div');
+            div.className = `test-case ${className}`;
+            div.innerHTML = message;
+            document.getElementById('results').appendChild(div);
+        }
+    </script>
+</body>
+</html>
