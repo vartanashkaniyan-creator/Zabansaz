@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vakamova - آموزش زبان</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            color: white;
+            text-align: center;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 40px;
+        }
+        
+        .buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        
+        a.button {
+            display: block;
+            background: white;
+            color: #764ba2;
+            text-decoration: none;
+            padding: 18px 30px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            border: 2px solid white;
+        }
+        
+        a.button:hover {
+            background: transparent;
+            color: white;
+            transform: translateY(-5px);
+        }
+        
+        .status {
+            margin-top: 40px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            text-align: right;
+        }
+        
+        .file-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .file-list li {
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .file-list li:last-child {
+            border-bottom: none;
+        }
+        
+        .file-status {
+            background: #28a745;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 پروژه Vakamova</h1>
+        <div class="subtitle">اپلیکیشن آموزش ۱۲ زبان - نسخه آزمایشی</div>
+        
+        <div class="buttons">
+            <a href="test/index.html" class="button">
+                🔧 صفحه تست سیستم
+            </a>
+            <a href="https://github.com/your-username/vakamova" class="button" target="_blank">
+                📦 مخزن GitHub
+            </a>
+            <a href="#" class="button" onclick="runQuickTest()">
+                ⚡ تست سریع
+            </a>
+        </div>
+        
+        <div class="status">
+            <h3>📁 فایل‌های ساخته شده:</h3>
+            <ul class="file-list" id="fileList">
+                <!-- لیست به صورت خودکار پر می‌شود -->
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        // لیست فایل‌های پروژه
+        const projectFiles = [
+            { name: 'core/state-manager.js', status: '✅ آماده' },
+            { name: 'core/state-persistence.js', status: '✅ آماده' },
+            { name: 'core/context-provider.js', status: '✅ آماده' },
+            { name: 'test/index.html', status: '✅ آماده' },
+            { name: 'index.html (این صفحه)', status: '✅ در حال مشاهده' }
+        ];
+        
+        // نمایش لیست فایل‌ها
+        function displayFileList() {
+            const listElement = document.getElementById('fileList');
+            listElement.innerHTML = '';
+            
+            projectFiles.forEach(file => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span>📄 ${file.name}</span>
+                    <span class="file-status">${file.status}</span>
+                `;
+                listElement.appendChild(li);
+            });
+        }
+        
+        // تست سریع سیستم
+        function runQuickTest() {
+            try {
+                // تست localStorage
+                localStorage.setItem('vakamova_test', 'ok');
+                localStorage.removeItem('vakamova_test');
+                
+                // تست JavaScript
+                if (typeof Promise !== 'undefined') {
+                    alert('✅ سیستم آماده است!\n\nهمه چیز برای تست Vakamova آماده است.\nروی "صفحه تست سیستم" کلیک کنید.');
+                } else {
+                    alert('⚠️ مرورگر شما قدیمی است');
+                }
+            } catch (error) {
+                alert('❌ خطا در تست سیستم\n' + error.message);
+            }
+        }
+        
+        // بارگذاری اولیه
+        displayFileList();
+        
+        // نمایش آدرس فعلی
+        console.log('Vakamova Project Loaded');
+        console.log('URL:', window.location.href);
+        console.log('Files are ready for testing');
+    </script>
+</body>
+</html>
