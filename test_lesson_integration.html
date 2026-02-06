@@ -39,38 +39,54 @@
 
     <script>
         // ==================== Mock وابستگی‌های واقعی‌تر ====================
+ 
         class MockDatabase {
-            constructor() {
-                this.data = {
-                    courses: [
-                        {
-                            id: 'english_a1',
-                            language: 'en',
-                            title: 'انگلیسی سطح A1',
-                            description: 'مبتدی کامل',
-                            estimatedHours: 30,
-                            lessons: [
-                                { id: 'lesson_1', title: 'آشنایی', exercises: [{ id: 'ex1', points: 10, correctAnswers: ['Hello'] }] },
-                                { id: 'lesson_2', title: 'اعداد', exercises: [{ id: 'ex2', points: 15, correctAnswers: ['One', 'Two'] }] }
-                            ]
-                        }
-                    ],
-                    lessons: [
-                        { 
-                            id: 'lesson_1', 
-                            title: 'آشنایی',
-                            exercises: [
-                                { id: 'ex1', correctAnswers: ['Hello'], points: 10 },
-                                { id: 'ex2', correctAnswers: ['Goodbye'], points: 10 }
-                            ]
-                        }
-                    ],
-                    exercises: [
-                        { id: 'ex1', correctAnswers: ['Hello'], points: 10 },
-                        { id: 'ex2', correctAnswers: ['Goodbye'], points: 10 }
-                    ]
-                };
+
+
+
+
+
+constructor() {
+    this.data = {
+        courses: [
+            {
+                id: 'english_a1',
+                language: 'en',
+                title: 'انگلیسی سطح A1',
+                description: 'مبتدی کامل',
+                estimatedHours: 15, // تغییر از 30 به 15
+                lessons: [ // فقط یک درس باقی بماند
+                    { 
+                        id: 'lesson_1', 
+                        title: 'آشنایی', 
+                        exercises: [ // هر دو تمرین در همین درس
+                            { id: 'ex1', points: 10, correctAnswers: ['Hello'] },
+                            { id: 'ex2', points: 10, correctAnswers: ['Goodbye'] }
+                        ]
+                    }
+                    // درس lesson_2 حذف شد
+                ]
             }
+        ],
+        lessons: [
+            { 
+                id: 'lesson_1', 
+                title: 'آشنایی',
+                exercises: [
+                    { id: 'ex1', correctAnswers: ['Hello'], points: 10 },
+                    { id: 'ex2', correctAnswers: ['Goodbye'], points: 10 }
+                ]
+            }
+            // lesson_2 از اینجا هم حذف شود
+        ],
+        exercises: [
+            { id: 'ex1', correctAnswers: ['Hello'], points: 10 },
+            { id: 'ex2', correctAnswers: ['Goodbye'], points: 10 }
+        ]
+    };
+}
+
+            
             
             query(table) {
                 const self = this;
