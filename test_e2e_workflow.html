@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست End-to-End گردش کاربر - Vakamova</title>
+    <style>
+        body { font-family: Tahoma; max-width: 1000px; margin: 20px auto; padding: 20px; background: #f5f7fa; }
+        .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.08); }
+        .step { background: #e3f2fd; padding: 15px; margin: 15px 0; border-radius: 8px; border-right: 5px solid #2196f3; }
+        .success { color: #1b5e20; background: #e8f5e9; padding: 10px; margin: 8px 0; border-right: 4px solid #4caf50; border-radius: 4px; }
+        .exercise-ui { background: #fff3e0; padding: 15px; margin: 15px 0; border-radius: 8px; border: 2px solid #ff9800; }
+        button { background: linear-gradient(to left, #2196f3, #4caf50); color: white; border: none; padding: 12px 25px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold; margin: 5px; }
+        button:hover { opacity: 0.9; }
+        .user-action { background: #bbdefb; padding: 10px; margin: 10px 0; border-radius: 6px; }
+        .progress-bar { height: 10px; background: #e0e0e0; border-radius: 5px; margin: 15px 0; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(to right, #4caf50, #8bc34a); width: 0%; transition: width 0.5s; }
+        .final-report { background: #f1f8e9; padding: 20px; border-radius: 8px; border: 2px dashed #7cb342; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌍 تست End-to-End گردش کامل کاربر</h1>
+        <p>این تست کل فرآیند کاربر در اپلیکیشن را شبیه‌سازی می‌کند:</p>
+        <div class="progress-bar"><div class="progress-fill" id="globalProgress"></div></div>
+        
+        <div id="testFlow"></div>
+        <button onclick="startE2ETest()">شروع تست گردش کامل</button>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // ==================== سیستم شبیه‌سازی ====================
+        class UserSimulator {
+            constructor() {
+                this.user = { id: 'user_001', name: 'کاربر تست', language: null, level: 'beginner' };
+                this.selectedLesson = null;
+                this.score = 0;
+                this.completedExercises = [];
+                this.log = [];
+            }
+
+            selectLanguage(lang) {
+                this.user.language = lang;
+                this.addLog(`🌐 زبان انتخاب شد: <strong>${lang}</strong>`);
+                return this;
+            }
+
+            selectLesson(lesson) {
+                this.selectedLesson = lesson;
+                this.addLog(`📘 درس انتخاب شد: <strong>${lesson.title}</strong> (سطح: ${lesson.level})`);
+                return this;
+            }
+
+            completeExercise(exercise, isCorrect, earnedPoints) {
+                this.completedExercises.push({ exercise, isCorrect, earnedPoints });
+                this.score += earnedPoints;
+                this.addLog(`📝 تمرین انجام شد: ${exercise.type} → ${isCorrect ? '✅ صحیح' : '❌ نادرست'} (+${earnedPoints} امتیاز)`);
+                return this;
+            }
+
+            addLog(message) {
+                this.log.push({ time: new Date().toLocaleTimeString('fa-IR'), message });
+            }
+
+            getReport() {
+                return {
+                    user: this.user,
+                    lesson: this.selectedLesson,
+                    totalScore: this.score,
+                    completedCount: this.completedExercises.length,
+                    correctCount: this.completedExercises.filter(e => e.isCorrect).length,
+                    log: this.log
+                };
+            }
+        }
+
+        // ==================== سیستم تمرین ====================
+        class ExerciseSystem {
+            constructor() {
+                this.exercises = [
+                    {
+                        id: 'ex1',
+                        type: 'multipleChoice',
+                        question: 'ترجمه "کتاب" به انگلیسی چیست؟',
+                        options: ['Book', 'Pen', 'Desk', 'Chair'],
+                        correctAnswer: 'Book',
+                        points: 20
+                    },
+                    {
+                        id: 'ex2',
+                        type: 'fillBlank',
+                        sentence: 'I ___ to school every day.',
+                        blankPosition: 1,
+                        correctAnswer: 'go',
+                        points: 30
+                    },
+                    {
+                        id: 'ex3',
+                        type: 'matching',
+                        leftItems: ['سیب', 'میز', 'خورشید'],
+                        rightItems: ['Apple', 'Table', 'Sun'],
+                        correctPairs: [['سیب','Apple'], ['میز','Table'], ['خورشید','Sun']],
+                        points: 50
+                    }
+                ];
+            }
+
+            getExercise(type = null) {
+                if (type) {
+                    return this.exercises.find(e => e.type === type) || this.exercises[0];
+                }
+                return this.exercises[Math.floor(Math.random() * this.exercises.length)];
+            }
+
+            evaluateAnswer(exercise, userAnswer) {
+                let isCorrect = false;
+                let feedback = '';
+
+                switch (exercise.type) {
+                    case 'multipleChoice':
+                        isCorrect = userAnswer === exercise.correctAnswer;
+                        feedback = isCorrect ? 'عالی! پاسخ صحیح است.' : `پاسخ صحیح: ${exercise.correctAnswer}`;
+                        break;
+                    case 'fillBlank':
+                        isCorrect = userAnswer.toLowerCase() === exercise.correctAnswer.toLowerCase();
+                        feedback = isCorrect ? 'درست پر کردید!' : `کلمه صحیح: ${exercise.correctAnswer}`;
+                        break;
+                    case 'matching':
+                        // شبیه‌سازی ساده
+                        isCorrect = Math.random() > 0.3; // 70% شانس صحیح
+                        feedback = isCorrect ? 'همه موارد را درست وصل کردید!' : 'نیاز به تمرین بیشتر دارید.';
+                        break;
+                }
+
+                return { isCorrect, feedback, points: isCorrect ? exercise.points : 10 };
+            }
+        }
+
+        // ==================== UI شبیه‌ساز ====================
+        class SimulatorUI {
+            constructor() {
+                this.flowElement = document.getElementById('testFlow');
+                this.resultsElement = document.getElementById('results');
+                this.progressBar = document.getElementById('globalProgress');
+            }
+
+            showStep(stepNumber, title, content) {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'step';
+                stepDiv.innerHTML = `
+                    <h3>مرحله ${stepNumber}: ${title}</h3>
+                    <div>${content}</div>
+                `;
+                this.flowElement.appendChild(stepDiv);
+                this.updateProgress(stepNumber * 20);
+            }
+
+            showExerciseUI(exercise, onAnswer) {
+                const uiDiv = document.createElement('div');
+                uiDiv.className = 'exercise-ui';
+                
+                let interactionHTML = '';
+                switch (exercise.type) {
+                    case 'multipleChoice':
+                        interactionHTML = `
+                            <p><strong>سوال:</strong> ${exercise.question}</p>
+                            <div class="user-action">
+                                ${exercise.options.map((opt, i) => `
+                                    <button onclick="handleAnswer('${opt}')">${opt}</button>
+                                `).join('')}
+                            </div>
+                        `;
+                        break;
+                    case 'fillBlank':
+                        interactionHTML = `
+                            <p><strong>جمله:</strong> ${exercise.sentence}</p>
+                            <div class="user-action">
+                                <input type="text" id="blankAnswer" placeholder="پاسخ خود را وارد کنید">
+                                <button onclick="handleAnswer(document.getElementById('blankAnswer').value)">ثبت پاسخ</button>
+                            </div>
+                        `;
+                        break;
+                    case 'matching':
+                        interactionHTML = `
+                            <p><strong>جفت‌های صحیح را انتخاب کنید:</strong></p>
+                            <div class="user-action">
+                                <p>${exercise.leftItems.join(' ↔ ')}</p>
+                                <button onclick="handleAnswer('matched')">انجام دادم</button>
+                            </div>
+                        `;
+                        break;
+                }
+
+                uiDiv.innerHTML = interactionHTML;
+                this.flowElement.appendChild(uiDiv);
+                
+                window.handleAnswer = (answer) => {
+                    onAnswer(answer);
+                    uiDiv.style.opacity = '0.7';
+                };
+            }
+
+            showResult(message, isSuccess) {
+                const div = document.createElement('div');
+                div.className = isSuccess ? 'success' : 'error';
+                div.innerHTML = message;
+                this.resultsElement.appendChild(div);
+            }
+
+            showFinalReport(report) {
+                const reportDiv = document.createElement('div');
+                reportDiv.className = 'final-report';
+                reportDiv.innerHTML = `
+                    <h2>📊 گزارش نهایی گردش کاربر</h2>
+                    <p><strong>👤 کاربر:</strong> ${report.user.name}</p>
+                    <p><strong>🌐 زبان انتخابی:</strong> ${report.user.language}</p>
+                    <p><strong>📘 درس انجام شده:</strong> ${report.lesson.title}</p>
+                    <p><strong>🎯 امتیاز کل کسب شده:</strong> ${report.totalScore} از ۱۰۰</p>
+                    <p><strong>✅ تمرین‌های صحیح:</strong> ${report.correctCount} از ${report.completedCount}</p>
+                    <p><strong>📈 درصد موفقیت:</strong> ${Math.round((report.correctCount/report.completedCount)*100)}%</p>
+                    <hr>
+                    <h4>📝 تاریخچه فعالیت:</h4>
+                    <ul>${report.log.map(item => `<li>[${item.time}] ${item.message}</li>`).join('')}</ul>
+                `;
+                this.resultsElement.appendChild(reportDiv);
+            }
+
+            updateProgress(percent) {
+                this.progressBar.style.width = percent + '%';
+            }
+
+            clear() {
+                this.flowElement.innerHTML = '';
+                this.resultsElement.innerHTML = '';
+                this.updateProgress(0);
+            }
+        }
+
+        // ==================== اجرای تست ====================
+        const simulator = new UserSimulator();
+        const exerciseSystem = new ExerciseSystem();
+        const ui = new SimulatorUI();
+        let currentStep = 0;
+
+        async function startE2ETest() {
+            ui.clear();
+            currentStep = 0;
+            
+            try {
+                // مرحله 1: ورود و انتخاب زبان
+                ui.showStep(++currentStep, 'ورود و انتخاب زبان', 
+                    'کاربر وارد اپلیکیشن می‌شود و زبان انگلیسی را انتخاب می‌کند.');
+                
+                await delay(1000);
+                simulator.selectLanguage('انگلیسی');
+                ui.showResult('✅ کاربر با موفقیت وارد شد و زبان انگلیسی را انتخاب کرد.', true);
+                
+                // مرحله 2: انتخاب درس
+                ui.showStep(++currentStep, 'انتخاب درس', 
+                    'کاربر از بین دروس موجود، درس "مکالمه مقدماتی" را انتخاب می‌کند.');
+                
+                await delay(1200);
+                const lesson = { id: 'lesson1', title: 'مکالمه مقدماتی', level: 'A1', duration: '۱۵ دقیقه' };
+                simulator.selectLesson(lesson);
+                ui.showResult(`✅ درس "<strong>${lesson.title}</strong>" انتخاب شد.`, true);
+                
+                // مرحله 3: انجام تمرین اول (چندگزینه‌ای)
+                ui.showStep(++currentStep, 'تمرین اول: سوال چندگزینه‌ای', 
+                    'کاربر باید به سوال چندگزینه‌ای پاسخ دهد.');
+                
+                const ex1 = exerciseSystem.getExercise('multipleChoice');
+                await new Promise(resolve => {
+                    ui.showExerciseUI(ex1, (userAnswer) => {
+                        const result = exerciseSystem.evaluateAnswer(ex1, userAnswer);
+                        simulator.completeExercise(ex1, result.isCorrect, result.points);
+                        ui.showResult(`📝 <strong>نتیجه تمرین:</strong> ${result.feedback} (امتیاز: +${result.points})`, result.isCorrect);
+                        resolve();
+                    });
+                });
+                
+                // مرحله 4: انجام تمرین دوم (پرکردن جای خالی)
+                ui.showStep(++currentStep, 'تمرین دوم: پرکردن جای خالی', 
+                    'کاربر باید جای خالی در جمله را پر کند.');
+                
+                await delay(800);
+                const ex2 = exerciseSystem.getExercise('fillBlank');
+                const result2 = exerciseSystem.evaluateAnswer(ex2, 'go'); // شبیه‌سازی پاسخ کاربر
+                simulator.completeExercise(ex2, result2.isCorrect, result2.points);
+                ui.showResult(`📝 <strong>نتیجه تمرین:</strong> ${result2.feedback} (امتیاز: +${result2.points})`, result2.isCorrect);
+                
+                // مرحله 5: انجام تمرین سوم (جورچین)
+                ui.showStep(++currentStep, 'تمرین سوم: جورچین کلمات', 
+                    'کاربر باید کلمات فارسی و انگلیسی را به هم وصل کند.');
+                
+                await delay(1000);
+                const ex3 = exerciseSystem.getExercise('matching');
+                const result3 = exerciseSystem.evaluateAnswer(ex3, 'matched');
+                simulator.completeExercise(ex3, result3.isCorrect, result3.points);
+                ui.showResult(`📝 <strong>نتیجه تمرین:</strong> ${result3.feedback} (امتیاز: +${result3.points})`, result3.isCorrect);
+                
+                // مرحله 6: نمایش نتیجه نهایی
+                ui.showStep(++currentStep, 'نتیجه‌گیری و گزارش', 
+                    'نمایش گزارش نهایی عملکرد کاربر و ثبت در سیستم.');
+                
+                await delay(800);
+                const report = simulator.getReport();
+                ui.showFinalReport(report);
+                ui.showResult('🎉 <strong>تست گردش کامل کاربر با موفقیت به پایان رسید!</strong>', true);
+                ui.updateProgress(100);
+                
+            } catch (error) {
+                ui.showResult(`❌ خطا در اجرای تست: ${error.message}`, false);
+            }
+        }
+
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    </script>
+</body>
+</html>
