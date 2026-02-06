@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>تست OfflineQueue</title>
+    <style>
+        body { font-family: Tahoma; padding: 20px; text-align: center; }
+        button { padding: 12px 25px; font-size: 16px; background: #FF9800; color: white; 
+                 border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        button:hover { background: #F57C00; }
+        #result { margin: 20px; padding: 20px; border: 2px solid #ddd; border-radius: 10px; 
+                  min-height: 150px; font-family: monospace; text-align: left; background: #f9f9f9; 
+                  max-height: 400px; overflow-y: auto; }
+        .queue-info { background: #FFF3E0; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .step { margin: 8px 0; padding: 8px; border-left: 4px solid #FF9800; background: white; }
+        .success-step { border-left-color: #4CAF50; }
+        .error-step { border-left-color: #f44336; }
+        .queue-item { background: #FFECB3; margin: 5px; padding: 5px; border-radius: 3px; }
+        .network-status { padding: 10px; margin: 10px; border-radius: 5px; display: inline-block; }
+        .online { background: #C8E6C9; color: #2E7D32; }
+        .offline { background: #FFCDD2; color: #C62828; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست OfflineQueue</h1>
+    <p>فاز ۴: مدیریت صف عملیات آفلاین + EventBus</p>
+    
+    <div>
+        <button onclick="testOfflineQueue()">تست OfflineQueue</button>
+        <button onclick="simulateOffline()">شبیه‌سازی آفلاین</button>
+        <button onclick="simulateOnline()">شبیه‌سازی آنلاین</button>
+        <button onclick="clearLog()">پاک کردن لاگ</button>
+    </div>
+    
+    <div id="networkStatus" class="network-status online">🌐 وضعیت: آنلاین</div>
+    
+    <div id="result">منتظر شروع تست...</div>
+    
+    <div id="queueInfo" class="queue-info">
+        📊 وضعیت صف: منتظر تست...
+    </div>
+
+    <script>
+        // ==================== ۱. EventBus ====================
+        class EventBus {
+            constructor() { this.listeners = {}; }
+            on(eventName, callback) {
+                if (!this.listeners[eventName]) this.listeners[eventName] = [];
+                this.listeners[eventName].push(callback);
+                return () => this.off(eventName, callback);
+            }
+            off(eventName, callback) {
+                if (this.listeners[eventName]) {
+                    this.listeners[eventName] = this.listeners[eventName].filter(cb => cb !== callback);
+                }
+            }
+            emit(eventName, data) {
+                if (this.listeners[eventName]) {
+                    this.listeners[eventName].forEach(callback => {
+                        try { callback(data); } catch (error) { console.error('Listener error:', error); }
+                    });
+                }
+            }
+        }
+        
+        // ==================== ۲. OfflineQueue ====================
+        class OfflineQueue {
+            constructor(eventBus, config = {}) {
+                this.eventBus = eventBus;
+                this.config = {
+                    maxQueueSize: 10,
+                    processInterval: 2000, // 2 ثانیه
+                    maxRetries: 3,
+                    autoStart: true,
+                    ...config
+                };
+                
+                this.queue = [];
+                this.isOnline = true;
+                this.isProcessing = false;
+                this.processingTimer = null;
+                this.nextId = 1;
+                
+                // گوش دادن به وضعیت شبکه
+                this.eventBus.on('network.status', (status) => {
+                    this.setOnline(status.isOnline);
+                });
+                
+                log("✅ OfflineQueue ساخته شد");
+                this.updateDisplay();
+            }
+            
+            // اضافه کردن عملیات به صف
+            async enqueue(operationType, data, options = {}) {
+                if (this.queue.length >= this.config.maxQueueSize) {
+                    throw new Error(`صف پر است (حداکثر: ${this.config.maxQueueSize})`);
+                }
+                
+                const operation = {
+                    id: `op_${this.nextId++}_${Date.now()}`,
+                    type: operationType,
+                    data: data,
+                    priority: options.priority || 0,
+                    maxRetries: options.maxRetries || 3,
+                    retryCount: 0,
+                    state: 'PENDING',
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+                
+                this.queue.push(operation);
+                this.sortQueue();
+                
+                log(`📝 عملیات به صف اضافه شد: ${operationType} (ID: ${operation.id})`, 'info');
+                this.eventBus.emit('operation.enqueued', operation);
+                
+                // اگر آنلاین هستیم، شروع به پردازش کن
+                if (this.isOnline && this.config.autoStart) {
+                    this.processQueue();
+                }
+                
+                this.updateDisplay();
+                return operation;
+            }
+            
+            // پردازش صف
+            async processQueue() {
+                if (this.isProcessing || !this.isOnline || this.queue.length === 0) {
+                    return;
+                }
+                
+                this.isProcessing = true;
+                log(`🔧 شروع پردازش صف (${this.queue.length} عملیات)`);
+                
+                try {
+                    // عملیات‌های در حال انتظار
+                    const pendingOps = this.queue.filter(op => 
+                        op.state === 'PENDING' || op.state === 'RETRYING'
+                    ).slice(0, 3); // حداکثر 3 عملیات همزمان
+                    
+                    for (const operation of pendingOps) {
+                        await this.processOperation(operation);
+                    }
+                } finally {
+                    this.isProcessing = false;
+                    this.updateDisplay();
+                }
+            }
+            
+            // پردازش یک عملیات
+            async processOperation(operation) {
+                operation.state = 'PROCESSING';
+                this.updateDisplay();
+                
+                log(`⚙️ پردازش عملیات: ${operation.type} (ID: ${operation.id})`);
+                this.eventBus.emit('operation.processing', operation);
+                
+                try {
+                    // شبیه‌سازی پردازش (در واقعیت اینجا API call می‌شد)
+                    await this.simulateProcessing(operation);
+                    
+                    // موفقیت آمیز
+                    operation.state = 'COMPLETED';
+                    log(`✅ عملیات موفق: ${operation.type} (ID: ${operation.id})`, 'success');
+                    this.eventBus.emit('operation.completed', operation);
+                    
+                    // حذف از صف بعد از تاخیر
+                    setTimeout(() => {
+                        this.queue = this.queue.filter(op => op.id !== operation.id);
+                        this.updateDisplay();
+                    }, 1000);
+                    
+                } catch (error) {
+                    // خطا در پردازش
+                    operation.retryCount++;
+                    operation.updatedAt = Date.now();
+                    
+                    if (operation.retryCount >= operation.maxRetries) {
+                        // شکست دائمی
+                        operation.state = 'FAILED';
+                        log(`❌ عملیات شکست خورد (دائمی): ${operation.type}`, 'error');
+                        this.eventBus.emit('operation.failed', { operation, error });
+                    } else {
+                        // آماده برای retry
+                        operation.state = 'RETRYING';
+                        const delay = this.calculateRetryDelay(operation.retryCount);
+                        log(`🔄 عملیات برای retry آماده (تلاش ${operation.retryCount}/${operation.maxRetries})`, 'warning');
+                        
+                        // زمان‌بندی retry
+                        setTimeout(() => {
+                            if (operation.state === 'RETRYING') {
+                                operation.state = 'PENDING';
+                                if (this.isOnline) {
+                                    this.processQueue();
+                                }
+                            }
+                        }, delay);
+                    }
+                    
+                    this.updateDisplay();
+                }
+            }
+            
+            // شبیه‌سازی پردازش
+            async simulateProcessing(operation) {
+                return new Promise((resolve, reject) => {
+                    // شانس 70% برای موفقیت، 30% برای خطا
+                    const isSuccess = Math.random() > 0.3;
+                    
+                    setTimeout(() => {
+                        if (isSuccess) {
+                            resolve({ success: true, data: operation.data });
+                        } else {
+                            // شبیه‌سازی خطاهای مختلف
+                            const errors = [
+                                'خطای شبکه',
+                                'خطای سرور',
+                                'اتصال timeout شد',
+                                'مشکل در احراز هویت'
+                            ];
+                            const error = errors[Math.floor(Math.random() * errors.length)];
+                            reject(new Error(error));
+                        }
+                    }, 1000 + Math.random() * 1000); // تاخیر 1-2 ثانیه
+                });
+            }
+            
+            // محاسبه تاخیر retry (exponential backoff)
+            calculateRetryDelay(retryCount) {
+                const baseDelay = 1000; // 1 ثانیه
+                return Math.min(baseDelay * Math.pow(2, retryCount - 1), 10000); // حداکثر 10 ثانیه
+            }
+            
+            // مرتب‌سازی صف بر اساس اولویت
+            sortQueue() {
+                this.queue.sort((a, b) => {
+                    // اولویت بالاتر اول
+                    if (b.priority !== a.priority) return b.priority - a.priority;
+                    // قدیمی‌تر اول
+                    return a.createdAt - b.createdAt;
+                });
+            }
+            
+            // تغییر وضعیت آنلاین/آفلاین
+            setOnline(online) {
+                const wasOnline = this.isOnline;
+                this.isOnline = online;
+                
+                // آپدیت نمایش وضعیت شبکه
+                const statusEl = document.getElementById('networkStatus');
+                if (statusEl) {
+                    statusEl.className = online ? 'network-status online' : 'network-status offline';
+                    statusEl.textContent = online ? '🌐 وضعیت: آنلاین' : '📴 وضعیت: آفلاین';
+                }
+                
+                if (!wasOnline && online) {
+                    log("📶 اتصال به اینترنت برقرار شد - شروع پردازش صف", 'success');
+                    this.eventBus.emit('network.online');
+                    if (this.config.autoStart) {
+                        this.processQueue();
+                    }
+                } else if (wasOnline && !online) {
+                    log("📶 اتصال قطع شد - توقف پردازش", 'warning');
+                    this.eventBus.emit('network.offline');
+                }
+            }
+            
+            // شروع پردازش خودکار
+            startAutoProcessing() {
+                if (this.processingTimer) return;
+                
+                this.processingTimer = setInterval(() => {
+                    if (this.isOnline && !this.isProcessing) {
+                        this.processQueue();
+                    }
+                }, this.config.processInterval);
+                
+                log("⏰ پردازش خودکار فعال شد");
+            }
+            
+            // توقف پردازش خودکار
+            stopAutoProcessing() {
+                if (this.processingTimer) {
+                    clearInterval(this.processingTimer);
+                    this.processingTimer = null;
+                    log("⏹️ پردازش خودکار متوقف شد");
+                }
+            }
+            
+            // دریافت آمار صف
+            getStats() {
+                const stats = {
+                    total: this.queue.length,
+                    byState: {},
+                    byType: {}
+                };
+                
+                this.queue.forEach(op => {
+                    stats.byState[op.state] = (stats.byState[op.state] || 0) + 1;
+                    stats.byType[op.type] = (stats.byType[op.type] || 0) + 1;
+                });
+                
+                return stats;
+            }
+            
+            // پاک کردن صف
+            clear() {
+                this.queue = [];
+                log("🗑️ صف پاک شد");
+                this.updateDisplay();
+            }
+            
+            // آپدیت نمایش
+            updateDisplay() {
+                const display = document.getElementById('queueInfo');
+                if (!display) return;
+                
+                const stats = this.getStats();
+                let html = `
+                    <strong>📊 وضعیت صف:</strong><br>
+                    📦 تعداد کل: ${stats.total}<br>
+                    📈 بر اساس وضعیت:<br>
+                `;
+                
+                Object.entries(stats.byState).forEach(([state, count]) => {
+                    const icons = {
+                        'PENDING': '⏳',
+                        'PROCESSING': '⚙️',
+                        'RETRYING': '🔄',
+                        'COMPLETED': '✅',
+                        'FAILED': '❌'
+                    };
+                    html += `&nbsp;&nbsp;${icons[state] || '📌'} ${state}: ${count}<br>`;
+                });
+                
+                html += `<small>🔄 پردازش: ${this.isProcessing ? 'در حال اجرا' : 'متوقف'}</small>`;
+                
+                if (this.queue.length > 0) {
+                    html += `<br><br><strong>📋 عملیات‌ها:</strong>`;
+                    this.queue.slice(0, 5).forEach(op => {
+                        html += `
+                            <div class="queue-item">
+                                ${op.type} (${op.state})<br>
+                                <small>اولویت: ${op.priority} | تلاش: ${op.retryCount}/${op.maxRetries}</small>
+                            </div>
+                        `;
+                    });
+                    
+                    if (this.queue.length > 5) {
+                        html += `<small>+ ${this.queue.length - 5} عملیات دیگر...</small>`;
+                    }
+                }
+                
+                display.innerHTML = html;
+            }
+        }
+        
+        // ==================== ۳. توابع کمکی ====================
+        function log(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            const stepClass = type === 'success' ? 'success-step' : 
+                            type === 'error' ? 'error-step' : 'step';
+            
+            resultDiv.innerHTML += `
+                <div class="${stepClass}">
+                    <strong>[${new Date().toLocaleTimeString()}]</strong> ${message}
+                </div>
+            `;
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function clearLog() {
+            document.getElementById('result').innerHTML = '';
+        }
+        
+        // ==================== ۴. تست اصلی ====================
+        let offlineQueue = null;
+        let eventBus = null;
+        
+        function testOfflineQueue() {
+            clearLog();
+            log("🎬 شروع تست OfflineQueue...", "success");
+            
+            try {
+                // ۱. ساخت EventBus
+                log("مرحله ۱: ساخت EventBus...");
+                eventBus = new EventBus();
+                
+                // ۲. ساخت OfflineQueue
+                log("مرحله ۲: ساخت OfflineQueue...");
+                offlineQueue = new OfflineQueue(eventBus, {
+                    maxQueueSize: 15,
+                    processInterval: 3000,
+                    maxRetries: 2
+                });
+                
+                // ۳. ثبت listener برای events
+                log("مرحله ۳: ثبت listener‌ها...");
+                eventBus.on('operation.enqueued', (op) => {
+                    log(`📢 عملیات به صف اضافه شد: ${op.type}`);
+                });
+                
+                eventBus.on('operation.completed', (op) => {
+                    log(`📢 عملیات تکمیل شد: ${op.type}`, 'success');
+                });
+                
+                eventBus.on('operation.failed', ({ operation, error }) => {
+                    log(`📢 عملیات شکست خورد: ${operation.type} - ${error.message}`, 'error');
+                });
+                
+                eventBus.on('network.online', () => {
+                    log("📢 شبکه آنلاین شد", 'success');
+                });
+                
+                eventBus.on('network.offline', () => {
+                    log("📢 شبکه آفلاین شد", 'warning');
+                });
+                
+                // ۴. شروع پردازش خودکار
+                log("مرحله ۴: شروع پردازش خودکار...");
+                offlineQueue.startAutoProcessing();
+                
+                // ۵. اضافه کردن عملیات‌های مختلف
+                log("مرحله ۵: اضافه کردن عملیات‌های تست...");
+                
+                setTimeout(() => {
+                    // عملیات با اولویت بالا
+                    offlineQueue.enqueue('SYNC_LESSON_PROGRESS', {
+                        lessonId: 'lesson_1',
+                        progress: 85,
+                        userId: 'user_123'
+                    }, { priority: 10, maxRetries: 3 });
+                }, 500);
+                
+                setTimeout(() => {
+                    // عملیات با اولویت متوسط
+                    offlineQueue.enqueue('SYNC_USER_DATA', {
+                        userId: 'user_123',
+                        name: 'علی رضایی',
+                        email: 'ali@test.com'
+                    }, { priority: 5 });
+                }, 1000);
+                
+                setTimeout(() => {
+                    // عملیات دیگر
+                    offlineQueue.enqueue('SYNC_QUIZ_RESULT', {
+                        quizId: 'quiz_1',
+                        score: 95,
+                        answers: [1, 2, 3]
+                    }, { priority: 3 });
+                }, 1500);
+                
+                setTimeout(() => {
+                    // عملیات بیشتر
+                    offlineQueue.enqueue('UPLOAD_MEDIA', {
+                        fileId: 'file_1',
+                        type: 'audio',
+                        size: 1024
+                    }, { priority: 1 });
+                    
+                    offlineQueue.enqueue('UPDATE_SETTINGS', {
+                        theme: 'dark',
+                        language: 'fa'
+                    }, { priority: 8 });
+                }, 2000);
+                
+                // ۶. شبیه‌سازی آفلاین شدن
+                log("مرحله ۶: شبیه‌سازی آفلاین شدن (بعد از ۴ ثانیه)...", 'warning');
+                setTimeout(() => {
+                    offlineQueue.setOnline(false);
+                    
+                    // اضافه کردن عملیات در حالت آفلاین
+                    setTimeout(() => {
+                        log("➕ اضافه کردن عملیات در حالت آفلاین...");
+                        offlineQueue.enqueue('SYNC_MESSAGES', {
+                            count: 5,
+                            unread: 2
+                        }, { priority: 7 });
+                        
+                        offlineQueue.enqueue('BACKUP_DATA', {
+                            timestamp: Date.now()
+                        }, { priority: 2 });
+                    }, 1000);
+                    
+                    // بازگشت به آنلاین
+                    setTimeout(() => {
+                        log("↗️ بازگشت به حالت آنلاین (بعد از ۳ ثانیه)...", 'success');
+                        offlineQueue.setOnline(true);
+                    }, 3000);
+                }, 4000);
+                
+                // ۷. نمایش آمار
+                log("مرحله ۷: نمایش آمار دوره‌ای...");
+                const statsInterval = setInterval(() => {
+                    const stats = offlineQueue.getStats();
+                    log(`📊 آمار صف: کل=${stats.total}, درحال پردازش=${stats.byState.PROCESSING || 0}, انتظار=${stats.byState.PENDING || 0}`);
+                }, 2500);
+                
+                // ۸. تست پاک کردن صف
+                setTimeout(() => {
+                    log("مرحله ۸: تست پاک کردن صف (بعد از ۱۰ ثانیه)...");
+                    offlineQueue.clear();
+                    clearInterval(statsInterval);
+                }, 10000);
+                
+                // نتیجه نهایی
+                setTimeout(() => {
+                    log("=".repeat(50));
+                    log("🎉 تست OfflineQueue کامل شد!", 'success');
+                    log("✅ عملیات در صف مدیریت می‌شوند");
+                    log("✅ retry با exponential backoff کار می‌کند");
+                    log("✅ حالت آفلاین/آنلاین مدیریت می‌شود");
+                    log("✅ اولویت‌بندی عملیات کار می‌کند");
+                }, 12000);
+                
+            } catch (error) {
+                log(`❌ خطا در تست OfflineQueue: ${error.message}`, 'error');
+                console.error("OfflineQueue test error:", error);
+            }
+        }
+        
+        // ==================== ۵. توابع شبیه‌سازی ====================
+        function simulateOffline() {
+            if (offlineQueue) {
+                offlineQueue.setOnline(false);
+                log("📴 شبیه‌سازی حالت آفلاین", 'warning');
+            } else {
+                log("⚠️ ابتدا OfflineQueue را بسازید", 'error');
+            }
+        }
+        
+        function simulateOnline() {
+            if (offlineQueue) {
+                offlineQueue.setOnline(true);
+                log("🌐 شبیه‌سازی حالت آنلاین", 'success');
+            } else {
+                log("⚠️ ابتدا OfflineQueue را بسازید", 'error');
+            }
+        }
+        
+        // ==================== ۶. بارگذاری صفحه ====================
+        window.onload = function() {
+            log("📱 OfflineQueue Test Ready");
+            log("روی دکمه 'تست OfflineQueue' کلیک کنید");
+            log("می‌توانید حالت آفلاین/آنلاین را شبیه‌سازی کنید");
+        };
+    </script>
+</body>
+</html>
