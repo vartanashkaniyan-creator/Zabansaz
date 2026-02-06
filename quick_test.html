@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>تست سریع</title>
+    <meta charset="utf-8">
+</head>
+<body style="font-family: Tahoma; padding: 20px; direction: rtl;">
+    <h3>آزمایش مستقیم LessonEngine</h3>
+    <button onclick="runTest()">▶️ اجرا</button>
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+
+    <script>
+        // ======== اینجا کد lesson-engine.js را paste کن ========
+        // (بدون خط export)
+        
+        // نسخه آزمایشی فوری اگر کد اصلی را نداری:
+        class LessonEngine {
+            constructor(deps) {
+                console.log('✅ موتور ساخته شد');
+            }
+            async loadCourse() {
+                return {id: 'test', title: 'دوره آزمایشی'};
+            }
+        }
+        // ======== پایان کد ========
+
+        async function runTest() {
+            const result = document.getElementById('result');
+            try {
+                const engine = new LessonEngine({});
+                const course = await engine.loadCourse();
+                result.innerHTML = `<div style="color:green; padding:10px;">
+                    ✅ موفقیت!<br>
+                    دوره: <strong>${course.title}</strong>
+                </div>`;
+            } catch(error) {
+                result.innerHTML = `<div style="color:red; padding:10px;">
+                    ❌ خطا:<br>
+                    <code>${error.message}</code>
+                </div>`;
+                console.error('خطای کامل:', error);
+            }
+        }
+    </script>
+</body>
+</html>
