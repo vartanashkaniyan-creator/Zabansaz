@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>تست SessionManager اصلاح شده</title>
+    <style>
+        body { font-family: Tahoma; padding: 20px; }
+        button { padding: 12px 25px; font-size: 16px; background: #9C27B0; color: white; 
+                 border: none; border-radius: 5px; cursor: pointer; margin: 10px; }
+        button:hover { background: #7B1FA2; }
+        #result { margin: 20px; padding: 20px; border: 2px solid #ddd; border-radius: 10px; 
+                  min-height: 150px; font-family: monospace; text-align: left; background: #f9f9f9; 
+                  max-height: 400px; overflow-y: auto; }
+        .step { margin: 8px 0; padding: 8px; border-left: 4px solid #9C27B0; background: white; }
+        .success-step { border-left-color: #4CAF50; }
+        .error-step { border-left-color: #f44336; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست SessionManager (نسخه اصلاح شده)</h1>
+    
+    <button onclick="testSessionManager()">شروع تست SessionManager</button>
+    
+    <div id="result">منتظر شروع تست...</div>
+
+    <script>
+        // ==================== ۱. EventBus ====================
+        class EventBus {
+            constructor() { this.listeners = {}; }
+            on(eventName, callback) {
+                if (!this.listeners[eventName]) this.listeners[eventName] = [];
+                this.listeners[eventName].push(callback);
+                return () => this.off(eventName, callback);
+            }
+            off(eventName, callback) {
+                if (this.listeners[eventName]) {
+                    this.listeners[eventName] = this.listeners[eventName].filter(cb => cb !== callback);
+                }
+            }
+            emit(eventName, data) {
+                if (this.listeners[eventName]) {
+                    this.listeners[eventName].forEach(callback => {
+                        try { callback(data); } catch (error) { console.error('Listener error:', error); }
+                    });
+                }
+            }
+        }
+        
+        // ==================== ۲. StateManager ====================
+        class StateManager {
+            constructor(initialState = {}) {
+                this.state = { ...initialState };
+                this.eventBus = new EventBus();
+            }
+            getState() { return { ...this.state }; }
+            dispatch(action) {
+                const oldState = { ...this.state };
+                switch (action.type) {
+                    case 'SET_USER': 
+                        this.state.user = action.payload; 
+                        break;
+                    case 'CLEAR_USER': 
+                        this.state.user = null; 
+                        break;
+                }
+                this.eventBus.emit('state.changed', { type: action.type, oldState, newState: this.state });
+            }
+        }
+        
+        // ==================== ۳. SessionManager COMPLETE WITH login() ====================
+        class SessionManager {
+            constructor(eventBus, stateManager, config = {}) {
+                this.eventBus = eventBus;
+                this.stateManager = stateManager;
+                this.config = {
+                    accessTokenTTL: 5000,
+                    sessionTimeout: 10000,
+                    ...config
+                };
+                this.currentSession = null;
+                log("✅ SessionManager ساخته شد");
+            }
+            
+            // 🟢 متد login اضافه شده
+            async login(credentials) {
+                try {
+                    log(`🔐 تلاش برای لاگین: ${credentials.email}`);
+                    
+                    // اعتبارسنجی اولیه
+                    if (!credentials.email || !credentials.email.includes('@')) {
+                        throw new Error('ایمیل نامعتبر');
+                    }
+                    
+                    // ساخت سشن
+                    this.currentSession = {
+                        userId: `user_${Date.now()}`,
+                        email: credentials.email,
+                        accessToken: `token_${Math.random().toString(36).substr(2, 9)}`,
+                        refreshToken: `refresh_${Math.random().toString(36).substr(2, 9)}`,
+                        expiresAt: Date.now() + this.config.accessTokenTTL,
+                        createdAt: Date.now(),
+                        lastActivityAt: Date.now()
+                    };
+                    
+                    // آپدیت state
+                    this.stateManager.dispatch({
+                        type: 'SET_USER',
+                        payload: {
+                            id: this.currentSession.userId,
+                            email: credentials.email,
+                            name: credentials.email.split('@')[0]
+                        }
+                    });
+                    
+                    // انتشار event
+                    this.eventBus.emit('user.login', this.currentSession);
+                    this.eventBus.emit('session.created', this.currentSession);
+                    
+                    log(`✅ لاگین موفق: ${this.currentSession.userId}`, 'success');
+                    return this.currentSession;
+                    
+                } catch (error) {
+                    log(`❌ خطا در لاگین: ${error.message}`, 'error');
+                    throw error;
+                }
+            }
+            
+            async logout() {
+                if (!this.currentSession) return;
+                
+                log(`👋 لاگاوت کاربر: ${this.currentSession.userId}`);
+                this.stateManager.dispatch({ type: 'CLEAR_USER' });
+                this.eventBus.emit('user.logout', this.currentSession);
+                this.currentSession = null;
+                log("✅ لاگاوت موفق");
+            }
+            
+            isAuthenticated() {
+                return !!this.currentSession && Date.now() < this.currentSession.expiresAt;
+            }
+            
+            getAccessToken() {
+                return this.currentSession?.accessToken || null;
+            }
+        }
+        
+        // ==================== ۴. توابع کمکی ====================
+        function log(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            const stepClass = type === 'success' ? 'success-step' : 
+                            type === 'error' ? 'error-step' : 'step';
+            
+            resultDiv.innerHTML += `
+                <div class="${stepClass}">
+                    <strong>[${new Date().toLocaleTimeString()}]</strong> ${message}
+                </div>
+            `;
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+        }
+        
+        // ==================== ۵. تست اصلی ====================
+        function testSessionManager() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div>🎬 شروع تست SessionManager...</div>';
+            
+            setTimeout(async () => {
+                try {
+                    // ۱. ساخت EventBus و StateManager
+                    const eventBus = new EventBus();
+                    const stateManager = new StateManager();
+                    
+                    // ۲. ساخت SessionManager
+                    const sessionManager = new SessionManager(eventBus, stateManager, {
+                        accessTokenTTL: 3000
+                    });
+                    
+                    // ۳. تست لاگین
+                    log("🔄 تست لاگین...");
+                    const session = await sessionManager.login({
+                        email: 'user@vakamova.com',
+                        password: 'password123'
+                    });
+                    
+                    log(`✅ لاگین موفق: ${session.email}`, 'success');
+                    log(`🔑 توکن: ${session.accessToken}`);
+                    log(`👤 User ID: ${session.userId}`);
+                    
+                    // ۴. بررسی وضعیت احراز
+                    log("🔐 بررسی وضعیت احراز...");
+                    const isAuth = sessionManager.isAuthenticated();
+                    log(`وضعیت احراز: ${isAuth ? '✅ معتبر' : '❌ نامعتبر'}`);
+                    
+                    // ۵. دریافت توکن
+                    const token = sessionManager.getAccessToken();
+                    log(`🔑 توکن فعلی: ${token ? token.substring(0, 20) + '...' : 'null'}`);
+                    
+                    // ۶. تست لاگاوت
+                    setTimeout(async () => {
+                        log("👋 تست لاگاوت...");
+                        await sessionManager.logout();
+                        
+                        // بررسی state بعد از لاگاوت
+                        const state = stateManager.getState();
+                        log(`📊 State بعد از لاگاوت: ${state.user ? 'کاربر موجود' : 'کاربر null'}`);
+                        
+                        log("🎉 تست SessionManager کامل شد!", 'success');
+                    }, 1000);
+                    
+                } catch (error) {
+                    log(`❌ خطا در تست: ${error.message}`, 'error');
+                }
+            }, 500);
+        }
+    </script>
+</body>
+</html>
