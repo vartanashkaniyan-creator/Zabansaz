@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>تست StateManager</title>
+    <style>
+        body { 
+            font-family: Tahoma; 
+            padding: 20px;
+            text-align: center;
+        }
+        button {
+            padding: 12px 25px;
+            font-size: 16px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover { background: #0b7dda; }
+        #result {
+            margin: 20px;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            min-height: 150px;
+            font-family: monospace;
+            text-align: left;
+            background: #f9f9f9;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .state-display {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .step {
+            margin: 8px 0;
+            padding: 8px;
+            border-left: 4px solid #4CAF50;
+            background: white;
+        }
+        .error-step { border-left-color: #f44336; }
+        .warning-step { border-left-color: #ff9800; }
+    </style>
+</head>
+<body>
+    <h1>🧪 تست StateManager + EventBus</h1>
+    <p>فاز ۲: مدیریت وضعیت برنامه</p>
+    
+    <div>
+        <button onclick="testStateManager()">تست StateManager</button>
+        <button onclick="clearLog()">پاک کردن لاگ</button>
+    </div>
+    
+    <div id="result">
+        منتظر شروع تست...
+    </div>
+    
+    <div id="stateDisplay" class="state-display">
+        State فعلی: منتظر تست...
+    </div>
+
+    <script>
+        // ==================== ۱. EventBus ساده (همان قبلی) ====================
+        class EventBus {
+            constructor() {
+                this.listeners = {};
+            }
+            
+            on(eventName, callback) {
+                if (!this.listeners[eventName]) {
+                    this.listeners[eventName] = [];
+                }
+                this.listeners[eventName].push(callback);
+                return () => this.off(eventName, callback);
+            }
+            
+            off(eventName, callback) {
+                if (this.listeners[eventName]) {
+                    this.listeners[eventName] = this.listeners[eventName].filter(cb => cb !== callback);
+                }
+            }
+            
+            emit(eventName, data) {
+                if (this.listeners[eventName]) {
+                    this.listeners[eventName].forEach(callback => {
+                        try {
+                            callback(data);
+                        } catch (error) {
+                            console.error('Listener error:', error);
+                        }
+                    });
+                }
+            }
+        }
+        
+        // ==================== ۲. StateManager ====================
+        class StateManager {
+            constructor(initialState = {}) {
+                this.state = { ...initialState };
+                this.eventBus = new EventBus();
+                this.history = [];
+                this.maxHistory = 10;
+                
+                log("✅ StateManager ساخته شد");
+                this.updateDisplay();
+            }
+            
+            // دریافت state فعلی
+            getState() {
+                return { ...this.state };
+            }
+            
+            // تغییر state (dispatch action)
+            dispatch(action) {
+                const oldState = { ...this.state };
+                
+                log(`🔄 Dispatch action: ${action.type}`);
+                console.log('Action:', action);
+                
+                // پردازش action‌های مختلف
+                switch (action.type) {
+                    case 'SET_USER':
+                        this.state.user = action.payload;
+                        break;
+                        
+                    case 'UPDATE_SETTINGS':
+                        this.state.settings = { 
+                            ...this.state.settings, 
+                            ...action.payload 
+                        };
+                        break;
+                        
+                    case 'ADD_LESSON':
+                        if (!this.state.lessons) this.state.lessons = [];
+                        this.state.lessons.push(action.payload);
+                        break;
+                        
+                    case 'UPDATE_LESSON_PROGRESS':
+                        if (this.state.lessons) {
+                            const lesson = this.state.lessons.find(l => l.id === action.payload.id);
+                            if (lesson) {
+                                lesson.progress = action.payload.progress;
+                            }
+                        }
+                        break;
+                        
+                    case 'CLEAR_DATA':
+                        this.state = { settings: this.state.settings || {} };
+                        break;
+                        
+                    default:
+                        log(`⚠️ Action ناشناخته: ${action.type}`, 'warning');
+                        return;
+                }
+                
+                // ذخیره در تاریخچه
+                this.history.push({
+                    action,
+                    oldState,
+                    newState: { ...this.state },
+                    timestamp: Date.now()
+                });
+                
+                // محدود کردن تاریخچه
+                if (this.history.length > this.maxHistory) {
+                    this.history.shift();
+                }
+                
+                // انتشار event تغییر state
+                this.eventBus.emit('state.changed', {
+                    type: action.type,
+                    payload: action.payload,
+                    oldState,
+                    newState: this.state,
+                    timestamp: Date.now()
+                });
+                
+                this.updateDisplay();
+                log(`✅ State به‌روز شد با action: ${action.type}`);
+            }
+            
+            // بازگشت به حالت قبلی (undo)
+            undo() {
+                if (this.history.length > 0) {
+                    const lastChange = this.history.pop();
+                    this.state = lastChange.oldState;
+                    this.eventBus.emit('state.undo', lastChange);
+                    this.updateDisplay();
+                    log("↩️ عملیات undo انجام شد");
+                    return true;
+                }
+                return false;
+            }
+            
+            // ذخیره state در localStorage
+            save() {
+                try {
+                    localStorage.setItem('vakamova_state', JSON.stringify(this.state));
+                    log("💾 State در localStorage ذخیره شد");
+                    return true;
+                } catch (error) {
+                    log(`❌ خطا در ذخیره‌سازی: ${error.message}`, 'error');
+                    return false;
+                }
+            }
+            
+            // بارگذاری state از localStorage
+            load() {
+                try {
+                    const saved = localStorage.getItem('vakamova_state');
+                    if (saved) {
+                        this.state = JSON.parse(saved);
+                        this.updateDisplay();
+                        log("📂 State از localStorage بارگذاری شد");
+                        return true;
+                    }
+                } catch (error) {
+                    log(`❌ خطا در بارگذاری: ${error.message}`, 'error');
+                }
+                return false;
+            }
+            
+            // به‌روزرسانی نمایش state
+            updateDisplay() {
+                const display = document.getElementById('stateDisplay');
+                if (display) {
+                    display.innerHTML = `
+                        <strong>State فعلی:</strong>
+                        <pre>${JSON.stringify(this.state, null, 2)}</pre>
+                        <small>تاریخچه: ${this.history.length} تغییر</small>
+                    `;
+                }
+            }
+        }
+        
+        // ==================== ۳. توابع کمکی ====================
+        function log(message, type = 'info') {
+            const resultDiv = document.getElementById('result');
+            const stepClass = type === 'error' ? 'error-step' : 
+                            type === 'warning' ? 'warning-step' : 'step';
+            
+            resultDiv.innerHTML += `
+                <div class="${stepClass}">
+                    <strong>[${new Date().toLocaleTimeString()}]</strong> ${message}
+                </div>
+            `;
+            resultDiv.scrollTop = resultDiv.scrollHeight;
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function clearLog() {
+            document.getElementById('result').innerHTML = '';
+        }
+        
+        // ==================== ۴. تست اصلی ====================
+        let stateManager = null;
+        
+        function testStateManager() {
+            clearLog();
+            log("🎬 شروع تست StateManager...", "success");
+            
+            try {
+                // ۱. ساخت StateManager با state اولیه
+                log("مرحله ۱: ساخت StateManager...");
+                stateManager = new StateManager({
+                    user: null,
+                    lessons: [],
+                    settings: {
+                        theme: 'light',
+                        language: 'fa',
+                        notifications: true
+                    },
+                    appState: 'idle'
+                });
+                
+                // ۲. گوش دادن به تغییرات state
+                log("مرحله ۲: ثبت listener برای تغییرات state...");
+                stateManager.eventBus.on('state.changed', (data) => {
+                    log(`📢 State changed: ${data.type}`, "warning");
+                });
+                
+                // ۳. تغییر state‌های مختلف
+                log("مرحله ۳: تغییر state (SET_USER)...");
+                setTimeout(() => {
+                    stateManager.dispatch({
+                        type: 'SET_USER',
+                        payload: {
+                            id: 'user_001',
+                            email: 'user@vakamova.com',
+                            name: 'علی رضایی',
+                            subscription: 'premium'
+                        }
+                    });
+                }, 500);
+                
+                // ۴. اضافه کردن درس
+                log("مرحله ۴: اضافه کردن درس...");
+                setTimeout(() => {
+                    stateManager.dispatch({
+                        type: 'ADD_LESSON',
+                        payload: {
+                            id: 'lesson_001',
+                            title: 'مقدمات انگلیسی',
+                            level: 1,
+                            progress: 0,
+                            duration: '30 دقیقه'
+                        }
+                    });
+                }, 1000);
+                
+                // ۵. آپدیت تنظیمات
+                log("مرحله ۵: تغییر تنظیمات...");
+                setTimeout(() => {
+                    stateManager.dispatch({
+                        type: 'UPDATE_SETTINGS',
+                        payload: {
+                            theme: 'dark',
+                            offlineMode: true
+                        }
+                    });
+                }, 1500);
+                
+                // ۶. آپدیت پیشرفت درس
+                log("مرحله ۶: به‌روزرسانی پیشرفت درس...");
+                setTimeout(() => {
+                    stateManager.dispatch({
+                        type: 'UPDATE_LESSON_PROGRESS',
+                        payload: {
+                            id: 'lesson_001',
+                            progress: 75
+                        }
+                    });
+                }, 2000);
+                
+                // ۷. اضافه کردن درس دیگر
+                setTimeout(() => {
+                    stateManager.dispatch({
+                        type: 'ADD_LESSON',
+                        payload: {
+                            id: 'lesson_002',
+                            title: 'گرامر پیشرفته',
+                            level: 3,
+                            progress: 25,
+                            duration: '45 دقیقه'
+                        }
+                    });
+                }, 2500);
+                
+                // ۸. تست undo
+                log("مرحله ۷: تست undo...");
+                setTimeout(() => {
+                    const undone = stateManager.undo();
+                    if (undone) {
+                        log("✅ آخرین تغییر undo شد");
+                    } else {
+                        log("⚠️ هیچ تغییری برای undo وجود ندارد", "warning");
+                    }
+                }, 3000);
+                
+                // ۹. تست ذخیره‌سازی
+                log("مرحله ۸: تست ذخیره‌سازی در localStorage...");
+                setTimeout(() => {
+                    const saved = stateManager.save();
+                    if (saved) {
+                        log("✅ State ذخیره شد");
+                    }
+                }, 3500);
+                
+                // ۱۰. تست action نامعتبر
+                log("مرحله ۹: تست action نامعتبر...");
+                setTimeout(() => {
+                    stateManager.dispatch({
+                        type: 'UNKNOWN_ACTION',
+                        payload: {}
+                    });
+                }, 4000);
+                
+                // ۱۱. نمایش state نهایی
+                log("مرحله ۱۰: نمایش state نهایی...");
+                setTimeout(() => {
+                    const finalState = stateManager.getState();
+                    log("=".repeat(50));
+                    log("🎉 تست StateManager کامل شد!", "success");
+                    log(`✅ کاربر: ${finalState.user?.name || 'هیچ'}`);
+                    log(`✅ تعداد درس‌ها: ${finalState.lessons?.length || 0}`);
+                    log(`✅ تم: ${finalState.settings?.theme}`);
+                    log(`✅ تاریخچه تغییرات: ${stateManager.history.length}`);
+                    
+                    // نمایش state در console برای بررسی
+                    console.log('Final state:', finalState);
+                }, 4500);
+                
+            } catch (error) {
+                log(`❌ خطا در تست StateManager: ${error.message}`, "error");
+                console.error("StateManager test error:", error);
+            }
+        }
+        
+        // ==================== ۵. تست خودکار هنگام لود ====================
+        window.onload = function() {
+            log("📱 StateManager Test Ready");
+            log("روی دکمه 'تست StateManager' کلیک کنید");
+        };
+    </script>
+</body>
+</html>
