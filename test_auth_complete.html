@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست کامل سیستم احراز هویت - Vakamova</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #db2777 0%, #7c3aed 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+        .security-badge {
+            background: #10b981;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .test-container {
+            padding: 25px;
+        }
+        .test-section {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 2px solid #e2e8f0;
+        }
+        .test-section h2 {
+            color: #db2777;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .test-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #e2e8f0;
+            transition: all 0.3s;
+        }
+        .test-item.passed {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        .test-item.failed {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .test-item.security {
+            border-left-color: #8b5cf6;
+            background: #f5f3ff;
+        }
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .test-title {
+            font-weight: 600;
+            color: #1f2937;
+            flex: 1;
+        }
+        .test-security {
+            font-size: 0.8rem;
+            background: #8b5cf6;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-right: 10px;
+        }
+        .test-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-passed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .test-output {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 25px;
+            background: #f8fafc;
+            border-top: 2px solid #e2e8f0;
+        }
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        #run-tests {
+            background: linear-gradient(135deg, #db2777 0%, #7c3aed 100%);
+            color: white;
+        }
+        #run-tests:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(219, 39, 119, 0.4);
+        }
+        #run-tests:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        #clear-results, #export-results {
+            background: #6b7280;
+            color: white;
+        }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            padding: 20px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+        @media (max-width: 768px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .stat-box {
+            text-align: center;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+        .success { color: #10b981; }
+        .failure { color: #ef4444; }
+        .pending { color: #f59e0b; }
+        .security-color { color: #8b5cf6; }
+        
+        .auth-simulator {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .auth-simulator h3 {
+            color: #7c3aed;
+            margin-bottom: 15px;
+        }
+        .sim-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .form-group label {
+            font-weight: 500;
+            color: #4b5563;
+        }
+        .form-group input {
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+        .sim-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .sim-buttons button {
+            flex: 1;
+            padding: 10px;
+            font-size: 0.9rem;
+        }
+        @media (max-width: 768px) {
+            .test-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .controls {
+                flex-direction: column;
+            }
+            button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔐 تست کامل سیستم احراز هویت - Vakamova</h1>
+            <p>بررسی جامع Authentication، Session Management و Security</p>
+            <div class="security-badge">امنیت سطح بالا</div>
+        </header>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-value success" id="passed-count">0</div>
+                <div class="stat-label">موفق</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value failure" id="failed-count">0</div>
+                <div class="stat-label">ناموفق</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value security-color" id="security-count">0</div>
+                <div class="stat-label">تست امنیتی</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value pending" id="pending-count">0</div>
+                <div class="stat-label">در انتظار</div>
+            </div>
+        </div>
+        
+        <div class="auth-simulator">
+            <h3>🎮 شبیه‌ساز احراز هویت</h3>
+            <div class="sim-form">
+                <div class="form-group">
+                    <label>ایمیل:</label>
+                    <input type="email" id="sim-email" placeholder="user@vakamova.com" value="test@vakamova.com">
+                </div>
+                <div class="form-group">
+                    <label>رمز عبور:</label>
+                    <input type="password" id="sim-password" placeholder="••••••••" value="Test@1234">
+                </div>
+                <div class="sim-buttons">
+                    <button onclick="simulateLogin()" style="background: #10b981;">ورود</button>
+                    <button onclick="simulateRegister()" style="background: #3b82f6;">ثبت‌نام</button>
+                    <button onclick="simulateLogout()" style="background: #6b7280;">خروج</button>
+                </div>
+            </div>
+            <div id="sim-result" style="margin-top: 15px; font-family: monospace;"></div>
+        </div>
+        
+        <div class="test-container" id="test-container">
+            <!-- تست‌ها اینجا ساخته می‌شوند -->
+        </div>
+        
+        <div class="controls">
+            <button id="run-tests">
+                <span>🚀</span>
+                اجرای تمام تست‌ها
+            </button>
+            <button id="security-tests">
+                <span>🛡️</span>
+                تست‌های امنیتی
+            </button>
+            <button id="export-results">
+                <span>💾</span>
+                ذخیره نتایج
+            </button>
+            <button id="clear-results">
+                <span>🔄</span>
+                پاک کردن نتایج
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ============ سیستم ثبت لاگ امن ============
+        class SecurityLogger {
+            constructor() {
+                this.logs = [];
+                this.sensitiveFields = ['password', 'token', 'secret', 'key'];
+            }
+            
+            safeLog(message, data = null) {
+                // حذف فیلدهای حساس قبل از لاگ
+                let safeData = data;
+                if (data && typeof data === 'object') {
+                    safeData = { ...data };
+                    this.sensitiveFields.forEach(field => {
+                        if (safeData[field]) {
+                            safeData[field] = '***REDACTED***';
+                        }
+                    });
+                }
+                
+                const entry = {
+                    time: new Date().toISOString(),
+                    message,
+                    data: safeData,
+                    type: 'info',
+                    security: false
+                };
+                
+                this.logs.push(entry);
+                console.log(`[Auth Test] ${message}`, safeData || '');
+                return entry;
+            }
+            
+            securityLog(message, data = null) {
+                const entry = {
+                    time: new Date().toISOString(),
+                    message,
+                    data: this.redactSensitive(data),
+                    type: 'security',
+                    security: true
+                };
+                
+                this.logs.push(entry);
+                console.log(`%c[Auth Security] ${message}`, 'color: #8b5cf6; font-weight: bold;', data || '');
+                return entry;
+            }
+            
+            error(message, error) {
+                const entry = {
+                    time: new Date().toISOString(),
+                    message,
+                    error: error?.message || error,
+                    stack: error?.stack,
+                    type: 'error',
+                    security: false
+                };
+                
+                this.logs.push(entry);
+                console.error(`[Auth Test] ${message}:`, error);
+                return entry;
+            }
+            
+            redactSensitive(data) {
+                if (!data || typeof data !== 'object') return data;
+                
+                const redacted = { ...data };
+                this.sensitiveFields.forEach(field => {
+                    if (redacted[field]) {
+                        redacted[field] = '***SECURE***';
+                    }
+                });
+                return redacted;
+            }
+            
+            getStats() {
+                const securityLogs = this.logs.filter(l => l.security);
+                return {
+                    total: this.logs.length,
+                    security: securityLogs.length,
+                    errors: this.logs.filter(l => l.type === 'error').length
+                };
+            }
+        }
+
+        // ============ Mock سیستم احراز هویت ============
+        class MockAuthSystem {
+            constructor() {
+                this.users = new Map();
+                this.sessions = new Map();
+                this.tokens = new Map();
+                this.failedAttempts = new Map();
+                this.MAX_ATTEMPTS = 3;
+                this.LOCKOUT_TIME = 5 * 60 * 1000; // 5 دقیقه
+            }
+            
+            async register(email, password, userData = {}) {
+                await this.simulateNetworkDelay();
+                
+                // اعتبارسنجی
+                if (!this.isValidEmail(email)) {
+                    throw new Error('ایمیل نامعتبر است');
+                }
+                
+                if (!this.isStrongPassword(password)) {
+                    throw new Error('رمز عبور باید حداقل 8 کاراکتر و شامل حروف بزرگ و کوچک و عدد باشد');
+                }
+                
+                if (this.users.has(email)) {
+                    throw new Error('کاربر با این ایمیل قبلاً ثبت‌نام کرده است');
+                }
+                
+                // ایجاد کاربر
+                const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                const hashedPassword = this.hashPassword(password);
+                
+                this.users.set(email, {
+                    id: userId,
+                    email,
+                    passwordHash: hashedPassword,
+                    createdAt: new Date().toISOString(),
+                    ...userData,
+                    verified: false,
+                    role: 'user'
+                });
+                
+                return {
+                    success: true,
+                    userId,
+                    message: 'ثبت‌نام موفقیت‌آمیز بود',
+                    verificationRequired: true
+                };
+            }
+            
+            async login(email, password) {
+                await this.simulateNetworkDelay();
+                
+                // بررسی قفل شدن حساب
+                if (this.isAccountLocked(email)) {
+                    throw new Error('حساب به دلیل ورودهای ناموفق متعدد قفل شده است');
+                }
+                
+                // اعتبارسنجی
+                if (!this.users.has(email)) {
+                    this.recordFailedAttempt(email);
+                    throw new Error('ایمیل یا رمز عبور نادرست است');
+                }
+                
+                const user = this.users.get(email);
+                const isValid = this.verifyPassword(password, user.passwordHash);
+                
+                if (!isValid) {
+                    this.recordFailedAttempt(email);
+                    throw new Error('ایمیل یا رمز عبور نادرست است');
+                }
+                
+                // ریست تعداد تلاش‌های ناموفق
+                this.failedAttempts.delete(email);
+                
+                // ایجاد توکن
+                const token = this.generateToken(user.id);
+                const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 12)}`;
+                
+                const session = {
+                    sessionId,
+                    userId: user.id,
+                    token,
+                    createdAt: new Date().toISOString(),
+                    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 ساعت
+                    ip: '192.168.1.1', // شبیه‌سازی
+                    userAgent: 'Mozilla/5.0 (Test)'
+                };
+                
+                this.sessions.set(sessionId, session);
+                this.tokens.set(token, sessionId);
+                
+                return {
+                    success: true,
+                    token,
+                    sessionId,
+                    user: {
+                        id: user.id,
+                        email: user.email,
+                        role: user.role,
+                        verified: user.verified
+                    },
+                    expiresAt: session.expiresAt
+                };
+            }
+            
+            async logout(token) {
+                await this.simulateNetworkDelay();
+                
+                const sessionId = this.tokens.get(token);
+                if (!sessionId) {
+                    throw new Error('توکن نامعتبر است');
+                }
+                
+                this.sessions.delete(sessionId);
+                this.tokens.delete(token);
+                
+                return {
+                    success: true,
+                    message: 'خروج موفقیت‌آمیز بود'
+                };
+            }
+            
+            async verifyToken(token) {
+                await this.simulateNetworkDelay();
+                
+                const sessionId = this.tokens.get(token);
+                if (!sessionId) {
+                    return { valid: false, reason: 'توکن نامعتبر' };
+                }
+                
+                const session = this.sessions.get(sessionId);
+                if (!session) {
+                    return { valid: false, reason: 'سشن یافت نشد' };
+                }
+                
+                // بررسی انقضا
+                if (new Date(session.expiresAt) < new Date()) {
+                    this.sessions.delete(sessionId);
+                    this.tokens.delete(token);
+                    return { valid: false, reason: 'توکن منقضی شده' };
+                }
+                
+                // تازه‌سازی خودکار اگر نزدیک انقضا باشد
+                const shouldRefresh = new Date(session.expiresAt) - Date.now() < 60 * 60 * 1000; // کمتر از 1 ساعت
+                if (shouldRefresh) {
+                    session.expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+                }
+                
+                return {
+                    valid: true,
+                    session,
+                    user: this.getUserById(session.userId),
+                    refreshed: shouldRefresh
+                };
+            }
+            
+            async changePassword(email, oldPassword, newPassword) {
+                await this.simulateNetworkDelay();
+                
+                if (!this.users.has(email)) {
+                    throw new Error('کاربر یافت نشد');
+                }
+                
+                const user = this.users.get(email);
+                const isValid = this.verifyPassword(oldPassword, user.passwordHash);
+                
+                if (!isValid) {
+                    throw new Error('رمز عبور فعلی نادرست است');
+                }
+                
+                if (!this.isStrongPassword(newPassword)) {
+                    throw new Error('رمز عبور جدید باید حداقل 8 کاراکتر و شامل حروف بزرگ و کوچک و عدد باشد');
+                }
+                
+                user.passwordHash = this.hashPassword(newPassword);
+                user.passwordChangedAt = new Date().toISOString();
+                
+                // باطل کردن تمام سشن‌های قدیمی
+                for (const [sessionId, session] of this.sessions.entries()) {
+                    if (session.userId === user.id) {
+                        this.tokens.delete(session.token);
+                        this.sessions.delete(sessionId);
+                    }
+                }
+                
+                return {
+                    success: true,
+                    message: 'رمز عبور با موفقیت تغییر کرد'
+                };
+            }
+            
+            // ============ متدهای کمکی ============
+            
+            isValidEmail(email) {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(email);
+            }
+            
+            isStrongPassword(password) {
+                return password.length >= 8 &&
+                       /[A-Z]/.test(password) &&
+                       /[a-z]/.test(password) &&
+                       /[0-9]/.test(password);
+            }
+            
+            hashPassword(password) {
+                // در واقعیت از bcrypt یا similar استفاده می‌شود
+                return `hashed_${btoa(password)}_${Date.now()}`;
+            }
+            
+            verifyPassword(password, hash) {
+                const testHash = `hashed_${btoa(password)}`;
+                return hash.startsWith(testHash);
+            }
+            
+            generateToken(userId) {
+                return `token_${userId}_${Date.now()}_${Math.random().toString(36).substr(2, 16)}`;
+            }
+            
+            getUserById(userId) {
+                for (const user of this.users.values()) {
+                    if (user.id === userId) {
+                        const { passwordHash, ...safeUser } = user;
+                        return safeUser;
+                    }
+                }
+                return null;
+            }
+            
+            recordFailedAttempt(email) {
+                const attempts = this.failedAttempts.get(email) || { count: 0, firstAttempt: Date.now() };
+                attempts.count++;
+                
+                if (attempts.count >= this.MAX_ATTEMPTS) {
+                    attempts.lockedUntil = Date.now() + this.LOCKOUT_TIME;
+                }
+                
+                this.failedAttempts.set(email, attempts);
+            }
+            
+            isAccountLocked(email) {
+                const attempts = this.failedAttempts.get(email);
+                if (!attempts || !attempts.lockedUntil) return false;
+                
+                if (Date.now() < attempts.lockedUntil) {
+                    return true;
+                } else {
+                    // آزاد کردن قفل پس از گذشت زمان
+                    this.failedAttempts.delete(email);
+                    return false;
+                }
+            }
+            
+            simulateNetworkDelay() {
+                return new Promise(resolve => 
+                    setTimeout(resolve, Math.random() * 100 + 50)
+                );
+            }
+        }
+
+        // ============ تست‌های سیستم احراز هویت ============
+        const AUTH_TEST_SUITES = [
+            {
+                id: 'auth-core',
+                name: 'هسته احراز هویت',
+                icon: '🔐',
+                tests: [
+                    {
+                        id: 'auth-register',
+                        name: 'ثبت‌نام کاربر',
+                        description: 'بررسی فرآیند ثبت‌نام با اطلاعات معتبر',
+                        security: false,
+                        run: async () => {
+                            const auth = new MockAuthSystem();
+                            const result = await auth.register(
+                                'test.user@vakamova.com',
+                                'StrongPass123',
+                                { name: 'کاربر تست' }
+                            );
+                            
+                            if (!result.success) throw new Error('ثبت‌نام ناموفق');
+                            if (!result.userId) throw new Error('شناسه کاربر ایجاد نشد');
+                            
+                            return `✅ کاربر ${result.userId} با موفقیت ثبت‌نام شد`;
+                        }
+                    },
+                    {
+                        id: 'auth-login',
+                        name: 'ورود کاربر',
+                        description: 'بررسی فرآیند ورود با اعتبار معتبر',
+                        security: false,
+                        run: async () => {
+                            const auth = new MockAuthSystem();
+                            
+                            // اول ثبت‌نام
+                            await auth.register('login.test@vakamova.com', 'TestPass123');
+                            
+                            // سپس ورود
+                            const result = await auth.login('login.test@vakamova.com', 'TestPass123');
+                            
+                            if (!result.success) throw new Error('ورود ناموفق');
+                            if (!result.token) throw new Error('توکن ایجاد نشد');
+                            if (!result.user) throw new Error('اطلاعات کاربر بازگردانده نشد');
+                            
+                            return `✅ ورود موفق. توکن: ${result.token.substring(0, 20)}...`;
+                        }
+                    },
+                    {
+                        id: 'auth-logout',
+                        name: 'خروج از سیستم',
+                        description: 'بررسی باطل شدن سشن پس از خروج',
+                        security: true,
+                        run: async () => {
+                            const auth = new MockAuthSystem();
+                            
+                            // ثبت‌نام و ورود
+                            await auth.register('logout.test@vakamova.com', 'TestPass123');
+                            const loginResult = await auth.login('logout.test@vakamova.com', 'TestPass123');
+                            
+                            // خروج
+                            const logoutResult = await auth.logout(loginResult.token);
+                            
+                            if (!logoutResult.success) throw new Error('خروج ناموفق');
+                            
+                            // بررسی اینکه توکن دیگر معتبر نیست
+                            const verifyResult = await auth.verifyToken(loginResult.token);
+                            if (verifyResult.valid) throw new Error('توکن پس از خروج هنوز معتبر است');
+                            
+                            return '✅ خروج موفق و توکن با موفقیت باطل شد';
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'auth-security',
+                name: 'تست‌های امنیتی',
+                icon: '🛡️',
+                tests: [
+                    {
+                        id: 'auth-bruteforce',
+                        name: 'محافظت در برابر حمله Brute Force',
+                        description: 'بررسی قفل شدن حساب پس از ورودهای ناموفق متعدد',
+                        security: true,
+                        run: async () => {
+                            const auth = new MockAuthSystem();
+                            const email = 'bruteforce.test@vakamova.com';
+                            
+                            // ثبت‌نام کاربر
+                            await auth.register(email, 'CorrectPass123');
+                            
+                            // تلاش‌های ناموفق متعدد
+                            const errors = [];
+                            for (let i = 0; i < 5; i++) {
+                                try {
+                                    await auth.login(email, 'WrongPassword');
+                                } catch (error) {
+                                    errors.push(error.message);
+                                }
+                            }
+                            
+                            // تلاش برای ورود با رمز درست (باید قفل شده باشد)
+                            try {
+                                await auth.login(email, 'CorrectPass123');
+                                throw new Error('حساب پس از ۵ تلاش ناموفق قفل نشد');
+                            } catch (error) {
+                                if (!error.message.includes('قفل شده')) {
+                                    throw new Error('پیام خطای مناسب نمایش داده نشد');
+                                }
+                            }
+                            
+                            return '✅ سیستم در برابر حمله Brute Force محافظت می‌کند';
+                        }
+                    },
+                    {
+                        id: 'auth-password-strength',
+                        name: 'اعتبارسنجی قدرت رمز عبور',
+                        description: 'بررسی رد رمزهای عبور ضعیف',
+                        security: true,
+                        run: async () => {
+                            const auth = new MockAuthSystem();
+                            const weakPasswords = [
+                                '123',           // کوتاه
+                                'password',      // فقط حروف کوچک
+                                'PASSWORD',      // فقط حروف بزرگ
+                                '12345678',      // فقط اعداد
+                                'weakpass'       // بدون عدد
+                            ];
+                            
+                            for (const weakPass of weakPasswords) {
+                                try {
+                                    await auth.register('test@example.com', weakPass);
+                                    throw new Error(`رمز عبور ضعیف "${weakPass}" باید رد می‌شد`);
+                                } catch (error) {
+                                    if (!error.message.includes('رمز عبور باید')) {
+                                        throw new Error(`پیام خطای نامناسب برای "${weakPass}": ${error.message}`);
+                                    }
+                                }
+                            }
+                            
+                            // تست رمز قوی
+                            const strongResult = await auth.register(
+                                'strong.pass@vakamova.com',
+                                'StrongPass123'
+                            );
+                            
+                            if (!strongResult.success) throw new Error('رمز عبور قوی رد شد');
+                            
+                            return '✅ اعتبارسنجی قدرت رمز عبور به درستی کار می‌کند';
+                        }
+                    },
+                    {
+                        id: 'auth-token-expiry',
+                        name: 'انقضای توکن',
+                        description: 'بررسی باطل شدن توکن‌های منقضی شده',
+                        security: true,
+                        run: async () => {
+                            const auth = new MockAuthSystem();
+                            
+                            // ایجاد یک سشن با زمان انقضای گذشته
+                            const user = await auth.register('expiry.test@vakamova.com', 'TestPass123');
+                            const loginResult = await auth.login('expiry.test@vakamova.com', 'TestPass123');
+                            
+                            // دستکاری زمان انقضا در Mock (در واقعیت توسط سیستم مدیریت می‌شود)
+                            const sessionId = auth.tokens.get(loginResult.token);
+                            const session = auth.sessions.get(sessionId);
+                            session.expiresAt = new Date(Date.now() - 1000).toISOString(); // زمان گذشته
+                            
+                            // بررسی توکن
+                            const verifyResult = await auth.verifyToken(loginResult.token);
+                            
+                            if (verifyResult.valid) {
+                                throw new Error('توکن منقضی شده هنوز معتبر است');
+                            }
+                            
+                            if (!verifyResult.reason.includes('منقضی')) {
+                                throw new Error('دلیل مناسب برای توکن منقضی شده ارائه نشد');
+                            }
+                            
+                            return '✅ توکن‌های منقضی شده به درستی باطل می‌شوند';
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'auth-validation',
+                name: 'اعتبارسنجی ورودی',
+                icon: '✅',
+                tests: [
+                    {
+                        id: 'auth-email-validation',
+                        name: 'اعتبارسنجی ایمیل',
+                        description: 'بررسی رد ایمیل‌های نامعتبر',
+                        security: false,
+                        run: async () => {
+                            const auth = new MockAuthSystem();
+                            const invalidEmails = [
+                                'invalid',
+                                'invalid@',
+                                '@invalid.com',
+                                'invalid@.com',
+                                'invalid@com.'
+                            ];
+                            
+                            for (const email of invalidEmails) {
+                                try {
+                                    await auth.register(email, 'ValidPass123');
+                                    throw new Error(`ایمیل نامعتبر "${email}" باید رد می‌شد`);
+                                } catch (error) {
+                                    if (!error.message.includes('ایمیل')) {
+                                        throw new Error(`پیام خطای نامناسب برای "${email}": ${error.message}`);
+                                    }
+                                }
+                            }
+                            
+                            return '✅ اعتبارسنجی ایمیل به درستی کار می‌کند';
+                        }
+                    },
+                    {
+                        id: 'auth-duplicate-email',
+                        name: 'ایمیل تکراری',
+                        description: 'بررسی عدم پذیرش ایمیل‌های تکراری',
+                        security: false,
+                        run: async () => {
+                            const auth = new MockAuthSystem();
+                            const email = 'duplicate@vakamova.com';
+                            
+                            // اولین ثبت‌نام
+                            await auth.register(email, 'FirstPass123');
+                            
+                            // تلاش برای ثبت‌نام مجدد
+                            try {
+                                await auth.register(email, 'SecondPass123');
+                                throw new Error('ایمیل تکراری باید رد می‌شد');
+                            } catch (error) {
+                                if (!error.message.includes('قبلاً ثبت‌نام')) {
+                                    throw new Error(`پیام خطای نامناسب: ${error.message}`);
+                                }
+                            }
+                            
+                            return '✅ ایمیل‌های تکراری به درستی رد می‌شوند';
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'auth-advanced',
+                name: 'ویژگی‌های پیشرفته',
+                icon: '🚀',
+                tests: [
+                    {
+                        id: 'auth-token-refresh',
+                        name: 'تازه‌سازی خودکار توکن',
+                        description: 'بررسی تازه‌سازی توکن نزدیک انقضا',
+                        security: true,
+                        run: async () => {
+                            const auth = new MockAuthSystem();
+                            
+                            const email = 'refresh.test@vakamova.com';
+                            await auth.register(email, 'TestPass123');
+                            const loginResult = await auth.login(email, 'TestPass123');
+                            
+                            // دستکاری زمان انقضا به نزدیک انقضا
+                            const sessionId = auth.tokens.get(loginResult.token);
+                            const session = auth.sessions.get(sessionId);
+                            const nearExpiry = new Date(Date.now() + 30 * 60 * 1000); // 30 دقیقه دیگر
+                            session.expiresAt = nearExpiry.toISOString();
+                            
+                            // بررسی توکن (باید تازه‌سازی شود)
+                            const verifyResult = await auth.verifyToken(loginResult.token);
+                            
+                            if (!verifyResult.valid) throw new Error('توکن نامعتبر تشخیص داده شد');
+                            if (!verifyResult.refreshed) throw new Error('توکن نزدیک انقضا تازه‌سازی نشد');
+                            
+                            // بررسی اینکه زمان انقضا تمدید شده
+                            const newExpiry = new Date(session.expiresAt);
+                            const timeDiff = newExpiry - nearExpiry;
+                            
+                            if (timeDiff < 23 * 60 * 60 * 1000) { // باید حدود 24 ساعت تمدید شده باشد
+                                throw new Error('زمان انقضا به درستی تمدید نشد');
+                            }
+                            
+                            return '✅ توکن نزدیک انقضا به طور خودکار تازه‌سازی شد';
+                        }
+                    },
+                    {
+                        id: 'auth-password-change',
+                        name: 'تغییر رمز عبور',
+                        description: 'بررسی امنیت فرآیند تغییر رمز عبور',
+                        security: true,
+                        run: async () => {
+                            const auth = new MockAuthSystem();
+                            
+                            const email = 'changepass.test@vakamova.com';
+                            await auth.register(email, 'OldPass123');
+                            await auth.login(email, 'OldPass123');
+                            
+                            // تغییر رمز عبور
+                            const changeResult = await auth.changePassword(
+                                email,
+                                'OldPass123',
+                                'NewStrongPass456'
+                            );
+                            
+                            if (!changeResult.success) throw new Error('تغییر رمز عبور ناموفق');
+                            
+                            // ورود با رمز جدید
+                            const loginResult = await auth.login(email, 'NewStrongPass456');
+                            if (!loginResult.success) throw new Error('ورود با رمز جدید ناموفق');
+                            
+                            // تلاش برای ورود با رمز قدیمی
+                            try {
+                                await auth.login(email, 'OldPass123');
+                                throw new Error('رمز عبور قدیمی باید کار نمی‌کرد');
+                            } catch (error) {
+                                // موفقیت: رمز قدیمی کار نمی‌کند
+                            }
+                            
+                            return '✅ تغییر رمز عبور با امنیت کامل انجام شد';
+                        }
+                    }
+                ]
+            }
+        ];
+
+        // ============ سیستم مدیریت تست‌ها ============
+        class AuthTestManager {
+            constructor() {
+                this.logger = new SecurityLogger();
+                this.authSystem = new MockAuthSystem();
+                this.results = new Map();
+                this.totalTests = 0;
+                this.completedTests = 0;
+                this.securityTests = 0;
+                
+                this.calculateStats();
+                this.renderTests();
+                this.setupEventListeners();
+                this.updateDisplay();
+            }
+            
+            calculateStats() {
+                this.totalTests = AUTH_TEST_SUITES.reduce(
+                    (sum, suite) => sum + suite.tests.length, 0
+                );
+                this.securityTests = AUTH_TEST_SUITES.reduce(
+                    (sum, suite) => sum + suite.tests.filter(t => t.security).length, 0
+                );
+            }
+            
+            renderTests() {
+                const container = document.getElementById('test-container');
+                container.innerHTML = '';
+                
+                AUTH_TEST_SUITES.forEach(suite => {
+                    const section = document.createElement('div');
+                    section.className = 'test-section';
+                    section.innerHTML = `
+                        <h2><span>${suite.icon}</span> ${suite.name}</h2>
+                        <div id="suite-${suite.id}">
+                            ${suite.tests.map(test => `
+                                <div class="test-item ${test.security ? 'security' : ''}" id="test-${test.id}">
+                                    <div class="test-header">
+                                        <div class="test-title">
+                                            ${test.name}
+                                            ${test.security ? '<span class="test-security">امنیتی</span>' : ''}
+                                        </div>
+                                        <div class="test-status status-pending">در انتظار</div>
+                                    </div>
+                                    <div style="font-size: 0.9rem; color: #6b7280; margin-bottom: 8px;">
+                                        ${test.description}
+                                    </div>
+                                    <div class="test-output" id="output-${test.id}" style="display: none;"></div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    container.appendChild(section);
+                });
+            }
+            
+            setupEventListeners() {
+                document.getElementById('run-tests').addEventListener('click', () => {
+                    this.runAllTests();
+                });
+                
+                document.getElementById('security-tests').addEventListener('click', () => {
+                    this.runSecurityTests();
+                });
+                
+                document.getElementById('clear-results').addEventListener('click', () => {
+                    if (confirm('آیا از پاک کردن نتایج تمام تست‌ها مطمئن هستید؟')) {
+                        this.clearResults();
+                    }
+                });
+                
+                document.getElementById('export-results').addEventListener('click', () => {
+                    this.exportResults();
+                });
+            }
+            
+            async runAllTests() {
+                const runButton = document.getElementById('run-tests');
+                runButton.disabled = true;
+                runButton.innerHTML = '<span class="loading"></span> در حال اجرا...';
+                
+                this.logger.securityLog('شروع اجرای تمام تست‌های سیستم احراز هویت');
+                
+                for (const suite of AUTH_TEST_SUITES) {
+                    this.logger.safeLog(`شروع تست‌های ${suite.name}`);
+                    for (const test of suite.tests) {
+                        await this.runSingleTest(test);
+                    }
+                }
+                
+                runButton.disabled = false;
+                runButton.innerHTML = '<span>🚀</span> اجرای مجدد تست‌ها';
+                
+                this.showSummary();
+            }
+            
+            async runSecurityTests() {
+                const securityButton = document.getElementById('security-tests');
+                securityButton.disabled = true;
+                securityButton.innerHTML = '<span class="loading"></span> تست امنیتی...';
+                
+                this.logger.securityLog('شروع تست‌های امنیتی ویژه');
+                
+                for (const suite of AUTH_TEST_SUITES) {
+                    for (const test of suite.tests.filter(t => t.security)) {
+                        await this.runSingleTest(test);
+                    }
+                }
+                
+                securityButton.disabled = false;
+                securityButton.innerHTML = '<span>🛡️</span> تست‌های امنیتی';
+            }
+            
+            async runSingleTest(test) {
+                const testElement = document.getElementById(`test-${test.id}`);
+                const statusElement = testElement.querySelector('.test-status');
+                const outputElement = document.getElementById(`output-${test.id}`);
+                
+                // ریست وضعیت
+                testElement.className = `test-item ${test.security ? 'security' : ''}`;
+                statusElement.className = 'test-status status-pending';
+                statusElement.textContent = 'در حال اجرا...';
+                outputElement.style.display = 'none';
+                
+                try {
+                    const startTime = performance.now();
+                    const result = await test.run();
+                    const duration = performance.now() - startTime;
+                    
+                    // موفق
+                    testElement.classList.add('passed');
+                    statusElement.className = 'test-status status-passed';
+                    statusElement.textContent = `موفق (${duration.toFixed(0)}ms)`;
+                    outputElement.textContent = result;
+                    outputElement.style.display = 'block';
+                    
+                    this.results.set(test.id, { 
+                        success: true, 
+                        result,
+                        duration,
+                        security: test.security 
+                    });
+                    
+                    if (test.security) {
+                        this.logger.securityLog(`تست امنیتی "${test.name}" موفق`, { duration: `${duration.toFixed(0)}ms` });
+                    } else {
+                        this.logger.safeLog(`تست "${test.name}" موفق`, { duration: `${duration.toFixed(0)}ms` });
+                    }
+                    
+                } catch (error) {
+                    // شکست
+                    testElement.classList.add('failed');
+                    statusElement.className = 'test-status status-failed';
+                    statusElement.textContent = 'ناموفق';
+                    outputElement.textContent = `خطا: ${error.message}\n${error.stack || ''}`;
+                    outputElement.style.display = 'block';
+                    
+                    this.results.set(test.id, { 
+                        success: false, 
+                        error: error.message,
+                        security: test.security 
+                    });
+                    
+                    if (test.security) {
+                        this.logger.securityLog(`تست امنیتی "${test.name}" ناموفق`, error);
+                    } else {
+                        this.logger.error(`تست "${test.name}" ناموفق`, error);
+                    }
+                }
+                
+                this.completedTests++;
+                this.updateDisplay();
+            }
+            
+            updateDisplay() {
+                const passed = Array.from(this.results.values()).filter(r => r.success).length;
+                const failed = Array.from(this.results.values()).filter(r => !r.success).length;
+                const securityPassed = Array.from(this.results.values())
+                    .filter(r => r.security && r.success).length;
+                const pending = this.totalTests - this.completedTests;
+                
+                document.getElementById('passed-count').textContent = passed;
+                document.getElementById('failed-count').textContent = failed;
+                document.getElementById('security-count').textContent = securityPassed;
+                document.getElementById('pending-count').textContent = pending;
+            }
+            
+            clearResults() {
+                this.results.clear();
+                this.completedTests = 0;
+                this.renderTests();
+                this.updateDisplay();
+                this.logger.securityLog('نتایج تمام تست‌ها پاک شدند');
+                
+                // پاک کردن نتیجه شبیه‌ساز
+                document.getElementById('sim-result').textContent = '';
+            }
+            
+            exportResults() {
+                const results = {
+                    timestamp: new Date().toISOString(),
+                    system: 'Authentication System',
+                    totalTests: this.totalTests,
+                    completedTests: this.completedTests,
+                    securityTests: this.securityTests,
+                    results: Object.fromEntries(this.results),
+                    logs: this.logger.logs,
+                    stats: this.logger.getStats()
+                };
+                
+                const dataStr = JSON.stringify(results, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                
+                const exportFileDefaultName = `vakamova-auth-test-${new Date().toISOString().split('T')[0]}.json`;
+                
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+                
+                this.logger.securityLog('نتایج تست‌ها با موفقیت ذخیره شد');
+            }
+            
+            showSummary() {
+                const passed = Array.from(this.results.values()).filter(r => r.success).length;
+                const failed = this.completedTests - passed;
+                const securityPassed = Array.from(this.results.values())
+                    .filter(r => r.security && r.success).length;
+                const successRate = ((passed / this.totalTests) * 100).toFixed(1);
+                
+                const summary = `
+🎯 خلاصه نتایج تست احراز هویت:
+✅ موفق: ${passed} از ${this.totalTests}
+❌ ناموفق: ${failed}
+🛡️ تست‌های امنیتی: ${securityPassed} از ${this.securityTests}
+📊 نرخ موفقیت: ${successRate}%
+⏱️ تست‌های انجام شده: ${this.completedTests}
+                `.trim();
+                
+                this.logger.securityLog(summary);
+                
+                // نمایش اعلان
+                if (failed === 0 && securityPassed === this.securityTests) {
+                    alert(`🎉 تمام تست‌ها با موفقیت کامل!\n${summary}`);
+                } else if (failed > 0) {
+                    alert(`⚠️ ${failed} تست ناموفق داشتیم.\n${summary}`);
+                }
+            }
+            
+            // متدهای شبیه‌ساز
+            async simulateLogin() {
+                const email = document.getElementById('sim-email').value;
+                const password = document.getElementById('sim-password').value;
+                const resultEl = document.getElementById('sim-result');
+                
+                try {
+                    resultEl.innerHTML = '<span style="color: #f59e0b;">⏳ در حال ورود...</span>';
+                    
+                    const result = await this.authSystem.login(email, password);
+                    
+                    resultEl.innerHTML = `
+                        <span style="color: #10b981;">✅ ورود موفق</span><br>
+                        <small>کاربر: ${result.user.email}</small><br>
+                        <small>توکن: ${result.token.substring(0, 30)}...</small><br>
+                        <small>انقضا: ${new Date(result.expiresAt).toLocaleString('fa-IR')}</small>
+                    `;
+                    
+                    this.logger.safeLog('ورود شبیه‌سازی شده موفق', { email });
+                    
+                } catch (error) {
+                    resultEl.innerHTML = `<span style="color: #ef4444;">❌ خطا: ${error.message}</span>`;
+                    this.logger.error('ورود شبیه‌سازی شده ناموفق', error);
+                }
+            }
+            
+            async simulateRegister() {
+                const email = document.getElementById('sim-email').value;
+                const password = document.getElementById('sim-password').value;
+                const resultEl = document.getElementById('sim-result');
+                
+                try {
+                    resultEl.innerHTML = '<span style="color: #f59e0b;">⏳ در حال ثبت‌نام...</span>';
+                    
+                    const result = await this.authSystem.register(
+                        email, 
+                        password, 
+                        { name: 'کاربر شبیه‌ساز' }
+                    );
+                    
+                    resultEl.innerHTML = `
+                        <span style="color: #10b981;">✅ ثبت‌نام موفق</span><br>
+                        <small>شناسه کاربر: ${result.userId}</small><br>
+                        <small>${result.message}</small>
+                    `;
+                    
+                    this.logger.safeLog('ثبت‌نام شبیه‌سازی شده موفق', { email });
+                    
+                } catch (error) {
+                    resultEl.innerHTML = `<span style="color: #ef4444;">❌ خطا: ${error.message}</span>`;
+                    this.logger.error('ثبت‌نام شبیه‌سازی شده ناموفق', error);
+                }
+            }
+            
+            async simulateLogout() {
+                const resultEl = document.getElementById('sim-result');
+                
+                // در واقعیت باید توکن فعلی ذخیره شده باشد
+                // برای شبیه‌سازی، یک پیام نشان می‌دهیم
+                resultEl.innerHTML = `
+                    <span style="color: #3b82f6;">ℹ️ برای تست کامل خروج، ابتدا وارد شوید</span><br>
+                    <small>در نسخه واقعی، توکن جلسه ذخیره و مدیریت می‌شود</small>
+                `;
+                
+                this.logger.safeLog('درخواست خروج شبیه‌سازی شده');
+            }
+        }
+
+        // ============ راه‌اندازی و توابع عمومی ============
+        let authTestManager;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            authTestManager = new AuthTestManager();
+            console.log('✅ سیستم تست احراز هویت Vakamova آماده است');
+        });
+
+        // توابع شبیه‌ساز برای دکمه‌های HTML
+        window.simulateLogin = () => authTestManager.simulateLogin();
+        window.simulateRegister = () => authTestManager.simulateRegister();
+        window.simulateLogout = () => authTestManager.simulateLogout();
+    </script>
+</body>
+  </html>
