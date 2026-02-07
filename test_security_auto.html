@@ -1,0 +1,115 @@
+                `).join('')}
+                <p><strong>${passedCount === totalCount ? '✅ همه تست‌ها موفق' : '⚠️ نیاز به بررسی بیشتر'}</strong></p>
+            `;
+        }
+    </script>
+</body>
+</html>
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست امنیتی خودکار</title>
+    <style>
+        body { font-family: Tahoma; padding: 20px; background: #f5f5f5; }
+        .result { padding: 15px; margin: 10px 0; border-radius: 8px; border-right: 5px solid; }
+        .success { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; }
+        .error { background: #ffebee; border-color: #f44336; color: #c62828; }
+        .loading { background: #fff3e0; border-color: #ff9800; color: #ef6c00; }
+        .security-badge { display: inline-block; padding: 5px 10px; margin: 5px; border-radius: 4px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>🔐 تست امنیتی خودکار Vakamova</h2>
+    <div id="status" class="result loading">در حال بارگذاری و اجرای تست‌های امنیتی...</div>
+    <div id="results"></div>
+
+    <script>
+        // 🔹 فوراً بعد از لود شدن DOM اجرا می‌شود
+        document.addEventListener('DOMContentLoaded', function() {
+            runSecurityTests();
+        });
+
+        // 🔹 همچنین با تاخیر 500ms برای اطمینان
+        setTimeout(runSecurityTests, 500);
+
+        async function runSecurityTests() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            try {
+                // تست 1: بررسی وجود localStorage
+                statusDiv.innerHTML = '🔍 در حال بررسی localStorage...';
+                const localStorageTest = testLocalStorage();
+                
+                // تست 2: بررسی XSS Protection
+                statusDiv.innerHTML = '🛡️ در حال بررسی محافظت XSS...';
+                const xssTest = testXSSProtection();
+                
+                // تست 3: بررسی توکن امنیتی
+                statusDiv.innerHTML = '🔑 در حال بررسی امنیت توکن...';
+                const tokenTest = testTokenSecurity();
+                
+                // تست 4: بررسی رمزنگاری
+                statusDiv.innerHTML = '🔒 در حال بررسی رمزنگاری...';
+                const encryptionTest = testEncryption();
+                
+                // تست 5: بررسی اعتبارسنجی
+                statusDiv.innerHTML = '📝 در حال بررسی اعتبارسنجی ورودی...';
+                const validationTest = testInputValidation();
+                
+                // جمع‌بندی نتایج
+                const allTests = [
+                    { name: 'امنیت localStorage', result: localStorageTest },
+                    { name: 'محافظت در برابر XSS', result: xssTest },
+                    { name: 'امنیت توکن‌ها', result: tokenTest },
+                    { name: 'رمزنگاری داده‌ها', result: encryptionTest },
+                    { name: 'اعتبارسنجی ورودی', result: validationTest }
+                ];
+                
+                const passedTests = allTests.filter(t => t.result.passed).length;
+                const totalTests = allTests.length;
+                
+                // نمایش نتایج
+                resultsDiv.innerHTML = `
+                    <div class="result ${passedTests === totalTests ? 'success' : 'error'}">
+                        <h3>📊 نتیجه نهایی</h3>
+                        <p>${passedTests} از ${totalTests} تست موفقیت‌آمیز بود</p>
+                        <p>امتیاز امنیتی: ${Math.round((passedTests/totalTests)*100)}/100</p>
+                    </div>
+                `;
+                
+                // نمایش جزییات هر تست
+                allTests.forEach(test => {
+                    resultsDiv.innerHTML += `
+                        <div class="result ${test.result.passed ? 'success' : 'error'}">
+                            <strong>${test.result.passed ? '✅' : '❌'} ${test.name}</strong>
+                            <p>${test.result.message}</p>
+                            ${test.result.details ? `<small>${test.result.details}</small>` : ''}
+                        </div>
+                    `;
+                });
+                
+                statusDiv.className = passedTests === totalTests ? 'result success' : 'result error';
+                statusDiv.innerHTML = passedTests === totalTests ? 
+                    '✅ تمام تست‌های امنیتی با موفقیت گذشتند' :
+                    '⚠️ برخی تست‌های امنیتی نیاز به توجه دارند';
+                    
+            } catch (error) {
+                statusDiv.className = 'result error';
+                statusDiv.innerHTML = `❌ خطا در اجرای تست: ${error.message}`;
+                resultsDiv.innerHTML = `<div class="error">خطای فنی: ${error.toString()}</div>`;
+                console.error('خطای تست امنیتی:', error);
+            }
+        }
+        
+        // ==================== توابع تست ====================
+        
+        function testLocalStorage() {
+            try {
+                // تست دسترسی به localStorage
+                const testKey = 'security_test_' + Date.now();
+                const testValue = 'test_data';
+                
+                localStorage.setItem(testKey, testValue);
+                const retrieved =
