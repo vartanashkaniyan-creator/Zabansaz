@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست کامل سیستم مدیریت وضعیت - Vakamova</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+        }
+        .state-badge {
+            background: #f59e0b;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        .test-container {
+            padding: 25px;
+        }
+        .test-section {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 2px solid #e2e8f0;
+        }
+        .test-section h2 {
+            color: #0284c7;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .test-item {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #e2e8f0;
+            transition: all 0.3s;
+        }
+        .test-item.passed {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        .test-item.failed {
+            border-left-color: #ef4444;
+            background: #fef2f2;
+        }
+        .test-item.performance {
+            border-left-color: #f59e0b;
+            background: #fefce8;
+        }
+        .test-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .test-title {
+            font-weight: 600;
+            color: #1f2937;
+            flex: 1;
+        }
+        .test-performance {
+            font-size: 0.8rem;
+            background: #f59e0b;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-right: 10px;
+        }
+        .test-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-passed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status-failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .test-output {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .test-output.success {
+            background: #0f766e;
+        }
+        .test-output.error {
+            background: #7f1d1d;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 25px;
+            background: #f8fafc;
+            border-top: 2px solid #e2e8f0;
+        }
+        button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+        #run-tests {
+            background: linear-gradient(135deg, #0284c7 0%, #1d4ed8 100%);
+            color: white;
+        }
+        #run-tests:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(2, 132, 199, 0.4);
+        }
+        #run-tests:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        #clear-results, #export-results, #run-performance {
+            background: #6b7280;
+            color: white;
+        }
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            padding: 20px;
+            background: #f1f5f9;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+        @media (max-width: 992px) {
+            .stats {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (max-width: 576px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .stat-box {
+            text-align: center;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+        .success { color: #10b981; }
+        .failure { color: #ef4444; }
+        .pending { color: #f59e0b; }
+        .performance-color { color: #f59e0b; }
+        
+        .state-simulator {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .state-simulator {
+                grid-template-columns: 1fr;
+            }
+        }
+        .state-simulator h3 {
+            color: #1d4ed8;
+            margin-bottom: 15px;
+            grid-column: 1 / -1;
+        }
+        .sim-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .sim-controls button {
+            padding: 10px;
+            font-size: 0.9rem;
+            justify-content: flex-start;
+        }
+        .state-visualizer {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            overflow: auto;
+            max-height: 300px;
+        }
+        .state-key {
+            color: #60a5fa;
+        }
+        .state-value {
+            color: #34d399;
+        }
+        .state-type {
+            color: #fbbf24;
+        }
+        
+        .undo-redo-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .undo-redo-controls button {
+            flex: 1;
+            padding: 8px;
+            font-size: 0.8rem;
+        }
+        
+        @media (max-width: 768px) {
+            .test-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .controls {
+                flex-direction: column;
+            }
+            button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        .performance-chart {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .chart-bar {
+            height: 20px;
+            background: linear-gradient(90deg, #0284c7, #0ea5e9);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            transition: width 0.5s ease;
+        }
+        
+        .chart-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔄 تست کامل سیستم مدیریت وضعیت - Vakamova</h1>
+            <p>بررسی جامع State Management، Undo/Redo، Persistence و Performance</p>
+            <div class="state-badge">حالت‌های واکنش‌پذیر</div>
+        </header>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-value success" id="passed-count">0</div>
+                <div class="stat-label">موفق</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value failure" id="failed-count">0</div>
+                <div class="stat-label">ناموفق</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value performance-color" id="performance-count">0</div>
+                <div class="stat-label">تست عملکرد</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="state-count">0</div>
+                <div class="stat-label">وضعیت‌ها</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value pending" id="pending-count">0</div>
+                <div class="stat-label">در انتظار</div>
+            </div>
+        </div>
+        
+        <div class="state-simulator">
+            <h3>🎮 شبیه‌ساز مدیریت وضعیت</h3>
+            <div class="sim-controls">
+                <button onclick="simulateSetState()" style="background: #10b981;">
+                    <span>➕</span> اضافه کردن وضعیت
+                </button>
+                <button onclick="simulateUpdateState()" style="background: #3b82f6;">
+                    <span>✏️</span> به‌روزرسانی وضعیت
+                </button>
+                <button onclick="simulateDeleteState()" style="background: #ef4444;">
+                    <span>🗑️</span> حذف وضعیت
+                </button>
+                <button onclick="simulateNestedState()" style="background: #8b5cf6;">
+                    <span>📁</span> وضعیت تودرتو
+                </button>
+                
+                <div class="undo-redo-controls">
+                    <button onclick="simulateUndo()" style="background: #f59e0b;">
+                        <span>↩️</span> Undo
+                    </button>
+                    <button onclick="simulateRedo()" style="background: #f59e0b;">
+                        <span>↪️</span> Redo
+                    </button>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 10px; background: #f8fafc; border-radius: 8px;">
+                    <div style="font-size: 0.9rem; color: #64748b; margin-bottom: 5px;">وضعیت فعلی:</div>
+                    <div id="current-action" style="font-family: monospace; color: #1d4ed8;">هیچ عملیاتی انجام نشده</div>
+                </div>
+            </div>
+            
+            <div class="state-visualizer" id="state-visualizer">
+                // وضعیت‌ها اینجا نمایش داده می‌شوند
+                {
+                  "system": "state-simulator",
+                  "status": "ready"
+                }
+            </div>
+        </div>
+        
+        <div class="test-container" id="test-container">
+            <!-- تست‌ها اینجا ساخته می‌شوند -->
+        </div>
+        
+        <div class="controls">
+            <button id="run-tests">
+                <span>🚀</span>
+                اجرای تمام تست‌ها
+            </button>
+            <button id="run-performance">
+                <span>⚡</span>
+                تست‌های عملکرد
+            </button>
+            <button id="export-results">
+                <span>💾</span>
+                ذخیره نتایج
+            </button>
+            <button id="clear-results">
+                <span>🔄</span>
+                پاک کردن نتایج
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ============ سیستم ثبت لاگ ============
+        class StateLogger {
+            constructor() {
+                this.logs = [];
+                this.stateHistory = [];
+                this.maxHistory = 50;
+            }
+            
+            log(message, data = null) {
+                const entry = {
+                    time: new Date().toISOString(),
+                    message,
+                    data: this.sanitizeData(data),
+                    type: 'info'
+                };
+                
+                this.logs.push(entry);
+                console.log(`[State Test] ${message}`, data || '');
+                return entry;
+            }
+            
+            stateChange(action, previousState, newState) {
+                const entry = {
+                    time: new Date().toISOString(),
+                    action,
+                    previousState: this.sanitizeData(previousState),
+                    newState: this.sanitizeData(newState),
+                    type: 'state_change'
+                };
+                
+                this.logs.push(entry);
+                
+                // ذخیره در تاریخچه برای undo/redo
+                this.stateHistory.push({
+                    time: entry.time,
+                    action,
+                    state: this.sanitizeData(newState)
+                });
+                
+                if (this.stateHistory.length > this.maxHistory) {
+                    this.stateHistory.shift();
+                }
+                
+                console.log(`[State Change] ${action}`, newState);
+                return entry;
+            }
+            
+            performanceLog(operation, duration, dataSize = 0) {
+                const entry = {
+                    time: new Date().toISOString(),
+                    operation,
+                    duration,
+                    dataSize,
+                    type: 'performance'
+                };
+                
+                this.logs.push(entry);
+                console.log(`[State Performance] ${operation}: ${duration.toFixed(2)}ms (${dataSize} items)`);
+                return entry;
+            }
+            
+            error(message, error) {
+                const entry = {
+                    time: new Date().toISOString(),
+                    message,
+                    error: error?.message || error,
+                    stack: error?.stack,
+                    type: 'error'
+                };
+                
+                this.logs.push(entry);
+                console.error(`[State Test] ${message}:`, error);
+                return entry;
+            }
+            
+            sanitizeData(data) {
+                if (!data || typeof data !== 'object') return data;
+                
+                try {
+                    return JSON.parse(JSON.stringify(data));
+                } catch (e) {
+                    return { error: 'Data could not be serialized' };
+                }
+            }
+            
+            getStats() {
+                const performanceLogs = this.logs.filter(l => l.type === 'performance');
+                const avgDuration = performanceLogs.length > 0 
+                    ? performanceLogs.reduce((sum, l) => sum + l.duration, 0) / performanceLogs.length
+                    : 0;
+                    
+                return {
+                    totalLogs: this.logs.length,
+                    stateChanges: this.logs.filter(l => l.type === 'state_change').length,
+                    performanceTests: performanceLogs.length,
+                    avgPerformance: avgDuration,
+                    errors: this.logs.filter(l => l.type === 'error').length
+                };
+            }
+        }
+
+        // ============ Mock سیستم مدیریت وضعیت ============
+        class MockStateManager {
+            constructor() {
+                this.state = new Map();
+                this.listeners = new Set();
+                this.history = [];
+                this.future = [];
+                this.maxHistory = 100;
+                this.validationRules = new Map();
+                this.middlewares = [];
+                this.persistenceEnabled = false;
+                this.persistenceKey = 'vakamova_state';
+                
+                this.initializeDefaultState();
+            }
+            
+            initializeDefaultState() {
+                this.state.set('system', {
+                    initialized: true,
+                    version: '1.0.0',
+                    timestamp: new Date().toISOString()
+                });
+                
+                this.state.set('user', {
+                    isLoggedIn: false,
+                    preferences: {
+                        language: 'fa',
+                        theme: 'light',
+                        notifications: true
+                    }
+                });
+                
+                this.state.set('ui', {
+                    loading: false,
+                    currentPage: 'home',
+                    modalOpen: false
+                });
+            }
+            
+            // ============ عملیات اصلی ============
+            
+            set(key, value, description = '') {
+                const previousValue = this.state.get(key);
+                const change = {
+                    type: 'set',
+                    key,
+                    previousValue,
+                    newValue: value,
+                    timestamp: Date.now(),
+                    description
+                };
+                
+                // اجرای middlewareها
+                if (!this.runMiddlewares('beforeSet', change)) {
+                    throw new Error('Middleware blocked set operation');
+                }
+                
+                // اعتبارسنجی
+                if (this.validationRules.has(key)) {
+                    const isValid = this.validationRules.get(key)(value);
+                    if (!isValid) {
+                        throw new Error(`Validation failed for key: ${key}`);
+                    }
+                }
+                
+                // ذخیره در تاریخچه
+                this.addToHistory(change);
+                
+                // اعمال تغییر
+                this.state.set(key, value);
+                
+                // اجرای middlewareهای بعدی
+                this.runMiddlewares('afterSet', change);
+                
+                // اطلاع به listeners
+                this.notifyListeners(key, value, previousValue);
+                
+                // ذخیره‌سازی اگر فعال باشد
+                if (this.persistenceEnabled) {
+                    this.saveToStorage();
+                }
+                
+                return change;
+            }
+            
+            get(key, defaultValue = null) {
+                if (!this.state.has(key)) {
+                    return defaultValue;
+                }
+                return this.state.get(key);
+            }
+            
+            update(key, updater, description = '') {
+                const currentValue = this.get(key);
+                if (currentValue === undefined) {
+                    throw new Error(`Key not found: ${key}`);
+                }
+                
+                const newValue = typeof updater === 'function' 
+                    ? updater(currentValue)
+                    : { ...currentValue, ...updater };
+                
+                return this.set(key, newValue, description);
+            }
+            
+            delete(key, description = '') {
+                const previousValue = this.state.get(key);
+                if (!this.state.has(key)) {
+                    return null;
+                }
+                
+                const change = {
+                    type: 'delete',
+                    key,
+                    previousValue,
+                    newValue: undefined,
+                    timestamp: Date.now(),
+                    description
+                };
+                
+                if (!this.runMiddlewares('beforeDelete', change)) {
+                    throw new Error('Middleware blocked delete operation');
+                }
+                
+                this.addToHistory(change);
+                this.state.delete(key);
+                
+                this.runMiddlewares('afterDelete', change);
+                this.notifyListeners(key, undefined, previousValue);
+                
+                if (this.persistenceEnabled) {
+                    this.saveToStorage();
+                }
+                
+                return change;
+            }
+            
+            has(key) {
+                return this.state.has(key);
+            }
+            
+            clear(description = 'Clear all state') {
+                const previousState = new Map(this.state);
+                const change = {
+                    type: 'clear',
+                    previousState,
+                    newState: new Map(),
+                    timestamp: Date.now(),
+                    description
+                };
+                
+                if (!this.runMiddlewares('beforeClear', change)) {
+                    throw new Error('Middleware blocked clear operation');
+                }
+                
+                this.addToHistory(change);
+                this.state.clear();
+                this.initializeDefaultState();
+                
+                this.runMiddlewares('afterClear', change);
+                this.notifyListeners('*', undefined, previousState);
+                
+                if (this.persistenceEnabled) {
+                    this.saveToStorage();
+                }
+                
+                return change;
+            }
+            
+            // ============ ویژگی‌های پیشرفته ============
+            
+            addToHistory(change) {
+                this.history.push(change);
+                this.future = []; // پاک کردن future هنگام انجام عملیات جدید
+                
+                if (this.history.length > this.maxHistory) {
+                    this.history.shift();
+                }
+            }
+            
+            undo() {
+                if (this.history.length === 0) {
+                    return null;
+                }
+                
+                const lastChange = this.history.pop();
+                this.future.push(lastChange);
+                
+                // بازگرداندن به حالت قبلی
+                switch (lastChange.type) {
+                    case 'set':
+                    case 'update':
+                        if (lastChange.previousValue === undefined) {
+                            this.state.delete(lastChange.key);
+                        } else {
+                            this.state.set(lastChange.key, lastChange.previousValue);
+                        }
+                        break;
+                    case 'delete':
+                        this.state.set(lastChange.key, lastChange.previousValue);
+                        break;
+                    case 'clear':
+                        this.state = lastChange.previousState;
+                        break;
+                }
+                
+                this.notifyListeners('undo', lastChange);
+                return lastChange;
+            }
+            
+            redo() {
+                if (this.future.length === 0) {
+                    return null;
+                }
+                
+                const nextChange = this.future.pop();
+                this.history.push(nextChange);
+                
+                // اعمال مجدد تغییر
+                switch (nextChange.type) {
+                    case 'set':
+                    case 'update':
+                        this.state.set(nextChange.key, nextChange.newValue);
+                        break;
+                    case 'delete':
+                        this.state.delete(nextChange.key);
+                        break;
+                    case 'clear':
+                        this.state = nextChange.newState;
+                        break;
+                }
+                
+                this.notifyListeners('redo', nextChange);
+                return nextChange;
+            }
+            
+            // ============ اعتبارسنجی ============
+            
+            addValidation(key, validator) {
+                this.validationRules.set(key, validator);
+                return () => this.validationRules.delete(key);
+            }
+            
+            validateAll() {
+                const errors = [];
+                
+                for (const [key, value] of this.state.entries()) {
+                    if (this.validationRules.has(key)) {
+                        const isValid = this.validationRules.get(key)(value);
+                        if (!isValid) {
+                            errors.push({ key, value });
+                        }
+                    }
+                }
+                
+                return {
+                    valid: errors.length === 0,
+                    errors
+                };
+            }
+            
+            // ============ Middleware ============
+            
+            use(middleware) {
+                this.middlewares.push(middleware);
+                return () => {
+                    const index = this.middlewares.indexOf(middleware);
+                    if (index > -1) {
+                        this.middlewares.splice(index, 1);
+                    }
+                };
+            }
+            
+            runMiddlewares(phase, data) {
+                for (const middleware of this.middlewares) {
+                    if (middleware[phase]) {
+                        try {
+                            const result = middleware[phase](data);
+                            if (result === false) {
+                                return false;
+                            }
+                        } catch (error) {
+                            console.error(`Middleware error in ${phase}:`, error);
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            
+            // ============ Persistence ============
+            
+            enablePersistence(key = null) {
+                this.persistenceEnabled = true;
+                if (key) {
+                    this.persistenceKey = key;
+                }
+                
+                try {
+                    const saved = localStorage.getItem(this.persistenceKey);
+                    if (saved) {
+                        const parsed = JSON.parse(saved);
+                        for (const [key, value] of Object.entries(parsed)) {
+                            this.state.set(key, value);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error loading persisted state:', error);
+                }
+                
+                return this;
+            }
+            
+            disablePersistence() {
+                this.persistenceEnabled = false;
+                return this;
+            }
+            
+            saveToStorage() {
+                if (!this.persistenceEnabled) return;
+                
+                try {
+                    const serializable = {};
+                    for (const [key, value] of this.state.entries()) {
+                        try {
+                            JSON.stringify(value); // تست سریال‌پذیری
+                            serializable[key] = value;
+                        } catch (e) {
+                            console.warn(`Cannot serialize key "${key}" for persistence`);
+                        }
+                    }
+                    
+                    localStorage.setItem(this.persistenceKey, JSON.stringify(serializable));
+                } catch (error) {
+                    console.error('Error saving state to storage:', error);
+                }
+            }
+            
+            // ============ Listeners و Reactivity ============
+            
+            subscribe(listener) {
+                this.listeners.add(listener);
+                return () => this.listeners.delete(listener);
+            }
+            
+            notifyListeners(key, newValue, oldValue) {
+                for (const listener of this.listeners) {
+                    try {
+                        listener(key, newValue, oldValue);
+                    } catch (error) {
+                        console.error('Listener error:', error);
+                    }
+                }
+            }
+            
+            // ============ ابزارهای کمکی ============
+            
+            getAll() {
+                const result = {};
+                for (const [key, value] of this.state.entries()) {
+                    result[key] = value;
+                }
+                return result;
+            }
+            
+            getHistory() {
+                return [...this.history];
+            }
+            
+            getFuture() {
+                return [...this.future];
+            }
+            
+            getSnapshot() {
+                return {
+                    state: this.getAll(),
+                    history: this.getHistory(),
+                    future: this.getFuture(),
+                    timestamp: new Date().toISOString()
+                };
+            }
+            
+            size() {
+                return this.state.size;
+            }
+            
+            keys() {
+                return Array.from(this.state.keys());
+            }
+            
+            values() {
+                return Array.from(this.state.values());
+            }
+            
+            entries() {
+                return Array.from(this.state.entries());
+            }
+        }
+
+        // ============ تست‌های سیستم مدیریت وضعیت ============
+        const STATE_TEST_SUITES = [
+            {
+                id: 'state-core',
+                name: 'هسته مدیریت وضعیت',
+                icon: '🔧',
+                tests: [
+                    {
+                        id: 'state-set-get',
+                        name: 'تنظیم و دریافت وضعیت',
+                        description: 'بررسی عملیات پایه set و get',
+                        performance: false,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            
+                            // تست set
+                            stateManager.set('testKey', 'testValue');
+                            stateManager.set('nested', { level1: { level2: 'value' } });
+                            
+                            // تست get
+                            const value1 = stateManager.get('testKey');
+                            const value2 = stateManager.get('nested');
+                            
+                            if (value1 !== 'testValue') throw new Error('مقدار اول ذخیره نشد');
+                            if (value2.level1.level2 !== 'value') throw new Error('مقدار تودرتو ذخیره نشد');
+                            
+                            // تست has
+                            if (!stateManager.has('testKey')) throw new Error('has کار نمی‌کند');
+                            
+                            return `✅ ${stateManager.size()} وضعیت ذخیره شد`;
+                        }
+                    },
+                    {
+                        id: 'state-update',
+                        name: 'به‌روزرسانی وضعیت',
+                        description: 'بررسی به‌روزرسانی وضعیت‌های موجود',
+                        performance: false,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            
+                            stateManager.set('counter', 0);
+                            stateManager.update('counter', prev => prev + 1);
+                            stateManager.update('counter', prev => prev + 1);
+                            
+                            const counter = stateManager.get('counter');
+                            if (counter !== 2) throw new Error('به‌روزرسانی کار نمی‌کند');
+                            
+                            // به‌روزرسانی object
+                            stateManager.set('user', { name: 'علی', age: 25 });
+                            stateManager.update('user', prev => ({ ...prev, age: 26 }));
+                            
+                            const user = stateManager.get('user');
+                            if (user.age !== 26) throw new Error('به‌روزرسانی object کار نمی‌کند');
+                            
+                            return `✅ به‌روزرسانی موفق. counter: ${counter}, user.age: ${user.age}`;
+                        }
+                    },
+                    {
+                        id: 'state-delete-clear',
+                        name: 'حذف وضعیت‌ها',
+                        description: 'بررسی حذف وضعیت‌های فردی و کلی',
+                        performance: false,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            
+                            // اضافه کردن چند وضعیت
+                            stateManager.set('key1', 'value1');
+                            stateManager.set('key2', 'value2');
+                            stateManager.set('key3', 'value3');
+                            
+                            const initialSize = stateManager.size();
+                            
+                            // حذف فردی
+                            stateManager.delete('key2');
+                            if (stateManager.has('key2')) throw new Error('حذف فردی کار نمی‌کند');
+                            
+                            // حذف کلی
+                            stateManager.clear();
+                            if (stateManager.size() <= 0) throw new Error('حذف کلی کار نمی‌کند');
+                            
+                            // بررسی وجود وضعیت‌های پیش‌فرض
+                            const defaultKeys = stateManager.keys();
+                            
+                            return `✅ حذف موفق. وضعیت‌های باقی‌مانده: ${defaultKeys.join(', ')}`;
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'state-advanced',
+                name: 'ویژگی‌های پیشرفته',
+                icon: '🚀',
+                tests: [
+                    {
+                        id: 'state-undo-redo',
+                        name: 'قابلیت بازگردانی (Undo/Redo)',
+                        description: 'بررسی عملکرد undo و redo',
+                        performance: false,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            
+                            // ایجاد تغییرات
+                            stateManager.set('step1', 'value1', 'مرحله اول');
+                            stateManager.set('step2', 'value2', 'مرحله دوم');
+                            stateManager.set('step3', 'value3', 'مرحله سوم');
+                            
+                            const initial = stateManager.get('step3');
+                            
+                            // undo دو مرحله
+                            stateManager.undo(); // حذف step3
+                            stateManager.undo(); // حذف step2
+                            
+                            if (stateManager.has('step3')) throw new Error('Undo کار نمی‌کند');
+                            
+                            // redo یک مرحله
+                            stateManager.redo(); // بازگردانی step2
+                            
+                            if (!stateManager.has('step2')) throw new Error('Redo کار نمی‌کند');
+                            
+                            const history = stateManager.getHistory();
+                            const future = stateManager.getFuture();
+                            
+                            return `✅ Undo/Redo فعال. تاریخچه: ${history.length}, آینده: ${future.length}`;
+                        }
+                    },
+                    {
+                        id: 'state-validation',
+                        name: 'اعتبارسنجی وضعیت‌ها',
+                        description: 'بررسی validation rules برای وضعیت‌ها',
+                        performance: false,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            
+                            // اضافه کردن rule اعتبارسنجی
+                            const removeValidation = stateManager.addValidation('age', value => {
+                                return typeof value === 'number' && value >= 0 && value <= 120;
+                            });
+                            
+                            // تست اعتبارسنجی موفق
+                            stateManager.set('age', 25);
+                            
+                            // تست اعتبارسنجی ناموفق
+                            let validationError = false;
+                            try {
+                                stateManager.set('age', 150); // باید خطا دهد
+                            } catch (error) {
+                                validationError = true;
+                            }
+                            
+                            if (!validationError) throw new Error('اعتبارسنجی rule نقض شد');
+                            
+                            // حذف rule و تست مجدد
+                            removeValidation();
+                            stateManager.set('age', 200); // حالا باید کار کند
+                            
+                            // اعتبارسنجی کلی
+                            const validationResult = stateManager.validateAll();
+                            
+                            return `✅ اعتبارسنجی فعال. نتیجه: ${validationResult.valid ? 'معتبر' : 'نامعتبر'}`;
+                        }
+                    },
+                    {
+                        id: 'state-middleware',
+                        name: 'سیستم Middleware',
+                        description: 'بررسی middleware برای intercept کردن عملیات',
+                        performance: false,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            let middlewareCalled = false;
+                            let blockedOperation = false;
+                            
+                            // اضافه کردن middleware
+                            const removeMiddleware = stateManager.use({
+                                beforeSet: (change) => {
+                                    middlewareCalled = true;
+                                    console.log('Middleware: beforeSet', change);
+                                    
+                                    // مسدود کردن تغییرات برای keyهای خاص
+                                    if (change.key === 'blockedKey') {
+                                        return false;
+                                    }
+                                    return true;
+                                },
+                                
+                                afterSet: (change) => {
+                                    console.log('Middleware: afterSet', change);
+                                }
+                            });
+                            
+                            // تست middleware عادی
+                            stateManager.set('allowedKey', 'value');
+                            if (!middlewareCalled) throw new Error('Middleware فراخوانی نشد');
+                            
+                            // تست middleware مسدود کننده
+                            try {
+                                stateManager.set('blockedKey', 'value');
+                            } catch (error) {
+                                blockedOperation = true;
+                            }
+                            
+                            if (!blockedOperation) throw new Error('Middleware مسدود کننده کار نمی‌کند');
+                            
+                            // حذف middleware
+                            removeMiddleware();
+                            
+                            return '✅ سیستم Middleware به درستی کار می‌کند';
+                        }
+                    },
+                    {
+                        id: 'state-persistence',
+                        name: 'ذخیره‌سازی پایدار',
+                        description: 'بررسی ذخیره و بازیابی وضعیت از localStorage',
+                        performance: false,
+                        run: async () => {
+                            const testKey = 'vakamova_state_test';
+                            const stateManager = new MockStateManager();
+                            
+                            // فعال کردن persistence
+                            stateManager.enablePersistence(testKey);
+                            
+                            // اضافه کردن داده‌های تست
+                            stateManager.set('persistedData', {
+                                timestamp: new Date().toISOString(),
+                                value: 'این داده باید ذخیره شود'
+                            });
+                            
+                            // ذخیره‌سازی
+                            stateManager.saveToStorage();
+                            
+                            // ایجاد یک state manager جدید برای بازیابی
+                            const newStateManager = new MockStateManager();
+                            newStateManager.enablePersistence(testKey);
+                            
+                            // بررسی بازیابی داده
+                            const restoredData = newStateManager.get('persistedData');
+                            if (!restoredData || restoredData.value !== 'این داده باید ذخیره شود') {
+                                throw new Error('داده‌ها بازیابی نشدند');
+                            }
+                            
+                            // پاکسازی
+                            localStorage.removeItem(testKey);
+                            stateManager.disablePersistence();
+                            newStateManager.disablePersistence();
+                            
+                            return '✅ ذخیره‌سازی و بازیابی با موفقیت انجام شد';
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'state-performance',
+                name: 'تست‌های عملکرد',
+                icon: '⚡',
+                tests: [
+                    {
+                        id: 'state-bulk-operations',
+                        name: 'عملیات انبوه',
+                        description: 'بررسی عملکرد با ۱۰۰۰ عملیات set',
+                        performance: true,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            const startTime = performance.now();
+                            const operations = 1000;
+                            
+                            for (let i = 0; i < operations; i++) {
+                                stateManager.set(`key_${i}`, {
+                                    index: i,
+                                    data: 'x'.repeat(100), // داده با سایز متوسط
+                                    timestamp: Date.now()
+                                });
+                            }
+                            
+                            const endTime = performance.now();
+                            const duration = endTime - startTime;
+                            const opsPerSecond = (operations / duration) * 1000;
+                            
+                            if (stateManager.size() < operations) {
+                                throw new Error(`تنها ${stateManager.size()} از ${operations} عملیات ذخیره شد`);
+                            }
+                            
+                            return `⏱️ ${operations} عملیات در ${duration.toFixed(2)}ms (${opsPerSecond.toFixed(0)} ops/sec)`;
+                        }
+                    },
+                    {
+                        id: 'state-memory-usage',
+                        name: 'مصرف حافظه',
+                        description: 'بررسی افزایش حافظه با داده‌های حجیم',
+                        performance: true,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            const initialMemory = performance.memory?.usedJSHeapSize || 0;
+                            
+                            // اضافه کردن داده‌های حجیم
+                            const largeData = [];
+                            for (let i = 0; i < 1000; i++) {
+                                largeData.push({
+                                    id: i,
+                                    content: 'محتوا'.repeat(100),
+                                    metadata: {
+                                        created: new Date().toISOString(),
+                                        tags: ['test', 'performance', 'large-data']
+                                    }
+                                });
+                            }
+                            
+                            stateManager.set('largeDataset', largeData);
+                            
+                            const finalMemory = performance.memory?.usedJSHeapSize || initialMemory + 10000000;
+                            const memoryIncrease = finalMemory - initialMemory;
+                            
+                            // پاکسازی برای جلوگیری از نشت حافظه
+                            stateManager.delete('largeDataset');
+                            
+                            if (memoryIncrease < 5000000) { // کمتر از 5MB
+                                return `✅ مصرف حافظه مناسب: ${(memoryIncrease / 1024 / 1024).toFixed(2)}MB`;
+                            } else if (memoryIncrease < 10000000) { // کمتر از 10MB
+                                return `⚠️ مصرف حافظه قابل قبول: ${(memoryIncrease / 1024 / 1024).toFixed(2)}MB`;
+                            } else {
+                                throw new Error(`💥 مصرف حافظه زیاد: ${(memoryIncrease / 1024 / 1024).toFixed(2)}MB`);
+                            }
+                        }
+                    },
+                    {
+                        id: 'state-concurrent-updates',
+                        name: 'بروزرسانی‌های همزمان',
+                        description: 'بررسی عملکرد با عملیات‌های همزمان',
+                        performance: true,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            const startTime = performance.now();
+                            const concurrentOperations = 100;
+                            
+                            // ایجاد عملیات‌های همزمان
+                            const promises = [];
+                            for (let i = 0; i < concurrentOperations; i++) {
+                                promises.push(
+                                    new Promise(resolve => {
+                                        setTimeout(() => {
+                                            stateManager.set(`concurrent_${i}`, {
+                                                thread: i,
+                                                timestamp: Date.now()
+                                            });
+                                            resolve(i);
+                                        }, Math.random() * 10);
+                                    })
+                                );
+                            }
+                            
+                            await Promise.all(promises);
+                            const endTime = performance.now();
+                            const duration = endTime - startTime;
+                            
+                            // بررسی داده‌های از دست رفته
+                            let lostData = 0;
+                            for (let i = 0; i < concurrentOperations; i++) {
+                                if (!stateManager.has(`concurrent_${i}`)) {
+                                    lostData++;
+                                }
+                            }
+                            
+                            if (lostData > 0) {
+                                throw new Error(`${lostData} از ${concurrentOperations} عملیات همزمان از دست رفت`);
+                            }
+                            
+                            return `✅ ${concurrentOperations} عملیات همزمان در ${duration.toFixed(2)}ms`;
+                        }
+                    }
+                ]
+            },
+            {
+                id: 'state-integration',
+                name: 'تست‌های یکپارچه‌سازی',
+                icon: '🔗',
+                tests: [
+                    {
+                        id: 'state-reactivity',
+                        name: 'واکنش‌پذیری',
+                        description: 'بررسی اطلاع‌رسانی به listeners',
+                        performance: false,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            let listenerCalled = false;
+                            let receivedKey = null;
+                            let receivedValue = null;
+                            
+                            // ثبت listener
+                            const unsubscribe = stateManager.subscribe((key, newValue, oldValue) => {
+                                listenerCalled = true;
+                                receivedKey = key;
+                                receivedValue = newValue;
+                                console.log(`Listener: ${key} =`, newValue);
+                            });
+                            
+                            // ایجاد تغییر
+                            stateManager.set('reactiveKey', 'reactiveValue');
+                            
+                            if (!listenerCalled) throw new Error('Listener فراخوانی نشد');
+                            if (receivedKey !== 'reactiveKey') throw new Error('Key نادرست به listener ارسال شد');
+                            if (receivedValue !== 'reactiveValue') throw new Error('Value نادرست به listener ارسال شد');
+                            
+                            // لغو subscription
+                            unsubscribe();
+                            listenerCalled = false;
+                            
+                            // تغییر دیگر (باید listener فراخوانی نشود)
+                            stateManager.set('anotherKey', 'anotherValue');
+                            if (listenerCalled) throw new Error('Listener پس از unsubscribe همچنان فعال است');
+                            
+                            return '✅ سیستم واکنش‌پذیری به درستی کار می‌کند';
+                        }
+                    },
+                    {
+                        id: 'state-snapshot',
+                        name: 'Snapshot و بازیابی',
+                        description: 'بررسی قابلیت snapshot گرفتن و بازیابی',
+                        performance: false,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            
+                            // اضافه کردن داده‌های تست
+                            stateManager.set('app', { name: 'Vakamova', version: '1.0.0' });
+                            stateManager.set('user', { id: 123, name: 'کاربر تست' });
+                            stateManager.set('settings', { theme: 'dark', language: 'fa' });
+                            
+                            // گرفتن snapshot
+                            const snapshot = stateManager.getSnapshot();
+                            
+                            // ایجاد state manager جدید
+                            const restoredManager = new MockStateManager();
+                            
+                            // بازیابی از snapshot (در MockStateManager پیاده‌سازی نشده، شبیه‌سازی می‌کنیم)
+                            // در واقعیت باید متد restoreFromSnapshot وجود داشته باشد
+                            for (const [key, value] of Object.entries(snapshot.state)) {
+                                restoredManager.set(key, value);
+                            }
+                            
+                            // مقایسه
+                            const originalState = stateManager.getAll();
+                            const restoredState = restoredManager.getAll();
+                            
+                            let matches = true;
+                            for (const key in originalState) {
+                                if (JSON.stringify(originalState[key]) !== JSON.stringify(restoredState[key])) {
+                                    matches = false;
+                                    break;
+                                }
+                            }
+                            
+                            if (!matches) throw new Error('Snapshot بازیابی نشد');
+                            
+                            return `✅ Snapshot با ${Object.keys(originalState).length} وضعیت ذخیره و بازیابی شد`;
+                        }
+                    },
+                    {
+                        id: 'state-complex-structures',
+                        name: 'ساختارهای پیچیده',
+                        description: 'بررسی پشتیبانی از آرایه‌ها، اشیاء تودرتو و مقادیر ویژه',
+                        performance: false,
+                        run: async () => {
+                            const stateManager = new MockStateManager();
+                            
+                            // تست انواع مختلف داده
+                            const complexData = {
+                                array: [1, 2, 3, { nested: true }],
+                                nestedObject: {
+                                    level1: {
+                                        level2: {
+                                            level3: 'عمیق'
+                                        }
+                                    }
+                                },
+                                specialValues: {
+                                    nullValue: null,
+                                    undefinedValue: undefined,
+                                    date: new Date(),
+                                    regex: /test/gi,
+                                    function: () => console.log('test'),
+                                    infinity: Infinity,
+                                    nan: NaN
+                                },
+                                map: new Map([['key', 'value']]),
+                                set: new Set([1, 2, 3])
+                            };
+                            
+                            stateManager.set('complex', complexData);
+                            const retrieved = stateManager.get('complex');
+                            
+                            // بررسی ساختارهای اصلی (بعضی موارد مانند function و Map/Set ممکن است در JSON از بین بروند)
+                            if (!retrieved.array || retrieved.array.length !== 4) {
+                                throw new Error('آرایه به درستی ذخیره نشد');
+                            }
+                            
+                            if (!retrieved.nestedObject || retrieved.nestedObject.level1.level2.level3 !== 'عمیق') {
+                                throw new Error('اشیا تودرتو به درستی ذخیره نشدند');
+                            }
+                            
+                            return '✅ ساختارهای پیچیده پشتیبانی می‌شوند';
+                        }
+                    }
+                ]
+            }
+        ];
+
+        // ============ سیستم مدیریت تست‌ها ============
+        class StateTestManager {
+            constructor() {
+                this.logger = new StateLogger();
+                this.stateManager = new MockStateManager();
+                this.results = new Map();
+                this.totalTests = 0;
+                this.completedTests = 0;
+                this.performanceTests = 0;
+                this.stateCount = 0;
+                
+                this.calculateStats();
+                this.renderTests();
+                this.setupEventListeners();
+                this.updateDisplay();
+                this.initializeSimulator();
+            }
+            
+            calculateStats() {
+                this.totalTests = STATE_TEST_SUITES.reduce(
+                    (sum, suite) => sum + suite.tests.length, 0
+                );
+                this.performanceTests = STATE_TEST_SUITES.reduce(
+                    (sum, suite) => sum + suite.tests.filter(t => t.performance).length, 0
+                );
+            }
+            
+            renderTests() {
+                const container = document.getElementById('test-container');
+                container.innerHTML = '';
+                
+                STATE_TEST_SUITES.forEach(suite => {
+                    const section = document.createElement('div');
+                    section.className = 'test-section';
+                    section.innerHTML = `
+                        <h2><span>${suite.icon}</span> ${suite.name}</h2>
+                        <div id="suite-${suite.id}">
+                            ${suite.tests.map(test => `
+                                <div class="test-item ${test.performance ? 'performance' : ''}" id="test-${test.id}">
+                                    <div class="test-header">
+                                        <div class="test-title">
+                                            ${test.name}
+                                            ${test.performance ? '<span class="test-performance">عملکرد</span>' : ''}
+                                        </div>
+                                        <div class="test-status status-pending">در انتظار</div>
+                                    </div>
+                                    <div style="font-size: 0.9rem; color: #6b7280; margin-bottom: 8px;">
+                                        ${test.description}
+                                    </div>
+                                    <div class="test-output" id="output-${test.id}" style="display: none;"></div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    container.appendChild(section);
+                });
+            }
+            
+            setupEventListeners() {
+                document.getElementById('run-tests').addEventListener('click', () => {
+                    this.runAllTests();
+                });
+                
+                document.getElementById('run-performance').addEventListener('click', () => {
+                    this.runPerformanceTests();
+                });
+                
+                document.getElementById('clear-results').addEventListener('click', () => {
+                    if (confirm('آیا از پاک کردن نتایج تمام تست‌ها مطمئن هستید؟')) {
+                        this.clearResults();
+                    }
+                });
+                
+                document.getElementById('export-results').addEventListener('click', () => {
+                    this.exportResults();
+                });
+            }
+            
+            async runAllTests() {
+                const runButton = document.getElementById('run-tests');
+                runButton.disabled = true;
+                runButton.innerHTML = '<span class="loading"></span> در حال اجرا...';
+                
+                this.logger.log('شروع اجرای تمام تست‌های سیستم مدیریت وضعیت');
+                
+                for (const suite of STATE_TEST_SUITES) {
+                    this.logger.log(`شروع تست‌های ${suite.name}`);
+                    for (const test of suite.tests) {
+                        await this.runSingleTest(test);
+                    }
+                }
+                
+                runButton.disabled = false;
+                runButton.innerHTML = '<span>🚀</span> اجرای مجدد تست‌ها';
+                
+                this.showSummary();
+            }
+            
+            async runPerformanceTests() {
+                const performanceButton = document.getElementById('run-performance');
+                performanceButton.disabled = true;
+                performanceButton.innerHTML = '<span class="loading"></span> تست عملکرد...';
+                
+                this.logger.log('شروع تست‌های عملکرد ویژه');
+                
+                for (const suite of STATE_TEST_SUITES) {
+                    for (const test of suite.tests.filter(t => t.performance)) {
+                        await this.runSingleTest(test);
+                    }
+                }
+                
+                performanceButton.disabled = false;
+                performanceButton.innerHTML = '<span>⚡</span> تست‌های عملکرد';
+                
+                this.showPerformanceChart();
+            }
+            
+            async runSingleTest(test) {
+                const testElement = document.getElementById(`test-${test.id}`);
+                const statusElement = testElement.querySelector('.test-status');
+                const outputElement = document.getElementById(`output-${test.id}`);
+                
+                // ریست وضعیت
+                testElement.className = `test-item ${test.performance ? 'performance' : ''}`;
+                statusElement.className = 'test-status status-pending';
+                statusElement.textContent = 'در حال اجرا...';
+                outputElement.style.display = 'none';
+                
+                try {
+                    const startTime = performance.now();
+                    const result = await test.run();
+                    const duration = performance.now() - startTime;
+                    
+                    // موفق
+                    testElement.classList.add('passed');
+                    statusElement.className = 'test-status status-passed';
+                    statusElement.textContent = `موفق (${duration.toFixed(0)}ms)`;
+                    outputElement.textContent = result;
+                    outputElement.className = 'test-output success';
+                    outputElement.style.display = 'block';
+                    
+                    this.results.set(test.id, { 
+                        success: true, 
+                        result,
+                        duration,
+                        performance: test.performance 
+                    });
+                    
+                    if (test.performance) {
+                        this.logger.performanceLog(`تست عملکرد "${test.name}"`, duration);
+                    } else {
+                        this.logger.log(`تست "${test.name}" موفق`, { duration: `${duration.toFixed(0)}ms` });
+                    }
+                    
+                } catch (error) {
+                    // شکست
+                    testElement.classList.add('failed');
+                    statusElement.className = 'test-status status-failed';
+                    statusElement.textContent = 'ناموفق';
+                    outputElement.textContent = `خطا: ${error.message}\n${error.stack || ''}`;
+                    outputElement.className = 'test-output error';
+                    outputElement.style.display = 'block';
+                    
+                    this.results.set(test.id, { 
+                        success: false, 
+                        error: error.message,
+                        performance: test.performance 
+                    });
+                    
+                    this.logger.error(`تست "${test.name}" ناموفق`, error);
+                }
+                
+                this.completedTests++;
+                this.updateDisplay();
+            }
+            
+            updateDisplay() {
+                const passed = Array.from(this.results.values()).filter(r => r.success).length;
+                const failed = Array.from(this.results.values()).filter(r => !r.success).length;
+                const performancePassed = Array.from(this.results.values())
+                    .filter(r => r.performance && r.success).length;
+                const pending = this.totalTests - this.completedTests;
+                
+                document.getElementById('passed-count').textContent = passed;
+                document.getElementById('failed-count').textContent = failed;
+                document.getElementById('performance-count').textContent = performancePassed;
+                document.getElementById('state-count').textContent = this.stateManager.size();
+                document.getElementById('pending-count').textContent = pending;
+            }
+            
+            clearResults() {
+                this.results.clear();
+                this.completedTests = 0;
+                this.renderTests();
+                this.updateDisplay();
+                this.logger.log('نتایج تمام تست‌ها پاک شدند');
+                
+                // ریست state manager
+                this.stateManager = new MockStateManager();
+                this.updateStateVisualizer();
+            }
+            
+            exportResults() {
+                const results = {
+                    timestamp: new Date().toISOString(),
+                    system: 'State Management System',
+                    totalTests: this.totalTests,
+                    completedTests: this.completedTests,
+                    performanceTests: this.performanceTests,
+                    results: Object.fromEntries(this.results),
+                    logs: this.logger.logs,
+                    stats: this.logger.getStats(),
+                    currentState: this.stateManager.getAll()
+                };
+                
+                const dataStr = JSON.stringify(results, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                
+                const exportFileDefaultName = `vakamova-state-test-${new Date().toISOString().split('T')[0]}.json`;
+                
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+                
+                this.logger.log('نتایج تست‌ها با موفقیت ذخیره شد');
+            }
+            
+            showSummary() {
+                const passed = Array.from(this.results.values()).filter(r => r.success).length;
+                const failed = this.completedTests - passed;
+                const performancePassed = Array.from(this.results.values())
+                    .filter(r => r.performance && r.success).length;
+                const successRate = ((passed / this.totalTests) * 100).toFixed(1);
+                
+                const performanceLogs = this.logger.logs.filter(l => l.type === 'performance');
+                const avgPerformance = performanceLogs.length > 0 
+                    ? (performanceLogs.reduce((sum, l) => sum + l.duration, 0) / performanceLogs.length).toFixed(2)
+                    : 0;
+                
+                const summary = `
+🎯 خلاصه نتایج تست مدیریت وضعیت:
+✅ موفق: ${passed} از ${this.totalTests}
+❌ ناموفق: ${failed}
+⚡ تست‌های عملکرد: ${performancePassed} از ${this.performanceTests}
+📊 نرخ موفقیت: ${successRate}%
+⏱️ میانگین زمان اجرا: ${avgPerformance}ms
+🗃️ وضعیت‌های فعلی: ${this.stateManager.size()}
+                `.trim();
+                
+                this.logger.log(summary);
+                
+                // نمایش اعلان
+                if (failed === 0 && performancePassed === this.performanceTests) {
+                    alert(`🎉 تمام تست‌ها با موفقیت کامل!\n${summary}`);
+                } else if (failed > 0) {
+                    alert(`⚠️ ${failed} تست ناموفق داشتیم.\n${summary}`);
+                }
+            }
+            
+            showPerformanceChart() {
+                const performanceResults = Array.from(this.results.values())
+                    .filter(r => r.performance && r.duration)
+                    .slice(-5); // ۵ تست آخر
+                
+                if (performanceResults.length === 0) return;
+                
+                const maxDuration = Math.max(...performanceResults.map(r => r.duration));
+                
+                let chartHTML = '<div class="performance-chart"><h4>📊 نمودار عملکرد</h4>';
+                
+                performanceResults.forEach((result, index) => {
+                    const width = (result.duration / maxDuration) * 100;
+                    chartHTML += `
+                        <div class="chart-label">
+                            <span>تست ${index + 1}</span>
+                            <span>${result.duration.toFixed(2)}ms</span>
+                        </div>
+                        <div class="chart-bar" style="width: ${width}%"></div>
+                    `;
+                });
+                
+                chartHTML += '</div>';
+                
+                // اضافه کردن به اولین تست performance
+                const firstPerfTest = document.querySelector('.test-item.performance');
+                if (firstPerfTest) {
+                    const existingChart = firstPerfTest.querySelector('.performance-chart');
+                    if (existingChart) existingChart.remove();
+                    firstPerfTest.insertAdjacentHTML('beforeend', chartHTML);
+                }
+            }
+            
+            // ============ شبیه‌ساز ============
+            
+            initializeSimulator() {
+                this.simulatorState = new MockStateManager();
+                this.updateStateVisualizer();
+            }
+            
+            updateStateVisualizer() {
+                const visualizer = document.getElementById('state-visualizer');
+                const state = this.simulatorState.getAll();
+                
+                const formatValue = (value, indent = 0) => {
+                    const spaces = '  '.repeat(indent);
+                    
+                    if (value === null) return '<span class="state-value">null</span>';
+                    if (value === undefined) return '<span class="state-value">undefined</span>';
+                    
+                    if (Array.isArray(value)) {
+                        return `[<br>${value.map(v => spaces + '  ' + formatValue(v, indent + 1)).join(',<br>')}<br>${spaces}]`;
+                    }
+                    
+                    if (typeof value === 'object' && value !== null) {
+                        const entries = Object.entries(value);
+                        if (entries.length === 0) return '{}';
+                        
+                        return `{<br>${entries.map(([k, v]) => 
+                            spaces + '  <span class="state-key">"' + k + '"</span>: ' + formatValue(v, indent + 1)
+                        ).join(',<br>')}<br>${spaces}}`;
+                    }
+                    
+                    if (typeof value === 'string') {
+                        return `<span class="state-value">"${value}"</span>`;
+                    }
+                    
+                    if (typeof value === 'number') {
+                        return `<span class="state-value">${value}</span>`;
+                    }
+                    
+                    if (typeof value === 'boolean') {
+                        return `<span class="state-value">${value}</span>`;
+                    }
+                    
+                    return `<span class="state-type">${typeof value}</span>`;
+                };
+                
+                visualizer.innerHTML = formatValue(state);
+            }
+            
+            simulateSetState() {
+                const key = `key_${Date.now()}`;
+                const value = {
+                    type: 'simulated',
+                    timestamp: new Date().toISOString(),
+                    random: Math.random()
+                };
+                
+                this.simulatorState.set(key, value, 'شبیه‌سازی: اضافه کردن وضعیت جدید');
+                this.updateStateVisualizer();
+                
+                document.getElementById('current-action').textContent = 
+                    `اضافه شد: ${key} = ${JSON.stringify(value).substring(0, 50)}...`;
+                
+                this.logger.stateChange('simulator_set', null, { [key]: value });
+                this.stateCount = this.simulatorState.size();
+                this.updateDisplay();
+            }
+            
+            simulateUpdateState() {
+                const keys = this.simulatorState.keys().filter(k => !k.startsWith('system'));
+                if (keys.length === 0) {
+                    alert('ابتدا وضعیتی اضافه کنید');
+                    return;
+                }
+                
+                const randomKey = keys[Math.floor(Math.random() * keys.length)];
+                const currentValue = this.simulatorState.get(randomKey);
+                
+                if (typeof currentValue === 'object' && currentValue !== null) {
+                    const updatedValue = {
+                        ...currentValue,
+                        updated: true,
+                        updateCount: (currentValue.updateCount || 0) + 1,
+                        lastUpdated: new Date().toISOString()
+                    };
+                    
+                    this.simulatorState.set(randomKey, updatedValue, 'شبیه‌سازی: به‌روزرسانی وضعیت');
+                    this.updateStateVisualizer();
+                    
+                    document.getElementById('current-action').textContent = 
+                        `به‌روزرسانی: ${randomKey} (${currentValue.updateCount || 0} → ${updatedValue.updateCount})`;
+                } else {
+                    this.simulatorState.set(randomKey, 'UPDATED', 'شبیه‌سازی: به‌روزرسانی به مقدار ساده');
+                    this.updateStateVisualizer();
+                    
+                    document.getElementById('current-action').textContent = 
+                        `به‌روزرسانی: ${randomKey} = "UPDATED"`;
+                }
+                
+                this.logger.stateChange('simulator_update', { [randomKey]: currentValue }, 
+                    { [randomKey]: this.simulatorState.get(randomKey) });
+            }
+            
+            simulateDeleteState() {
+                const keys = this.simulatorState.keys().filter(k => !k.startsWith('system'));
+                if (keys.length === 0) {
+                    alert('ابتدا وضعیتی اضافه کنید');
+                    return;
+                }
+                
+                const randomKey = keys[Math.floor(Math.random() * keys.length)];
+                const currentValue = this.simulatorState.get(randomKey);
+                
+                this.simulatorState.delete(randomKey, 'شبیه‌سازی: حذف وضعیت');
+                this.updateStateVisualizer();
+                
+                document.getElementById('current-action').textContent = 
+                    `حذف شد: ${randomKey}`;
+                
+                this.logger.stateChange('simulator_delete', { [randomKey]: currentValue }, null);
+                this.stateCount = this.simulatorState.size();
+                this.updateDisplay();
+            }
+            
+            simulateNestedState() {
+                const key = `nested_${Date.now()}`;
+                const value = {
+                    level1: {
+                        level2: {
+                            level3: {
+                                message: 'این یک ساختار تودرتو است',
+                                depth: 3,
+                                items: ['آیتم ۱', 'آیتم ۲', 'آیتم ۳'],
+                                metadata: {
+                                    created: new Date().toISOString(),
+                                    type: 'nested'
+                                }
+                            }
+                        }
+                    }
+                };
+                
+                this.simulatorState.set(key, value, 'شبیه‌سازی: اضافه کردن ساختار تودرتو');
+                this.updateStateVisualizer();
+                
+                document.getElementById('current-action').textContent = 
+                    `اضافه شد: ساختار تودرتو (${key})`;
+                
+                this.logger.stateChange('simulator_nested', null, { [key]: value });
+                this.stateCount = this.simulatorState.size();
+                this.updateDisplay();
+            }
+            
+            simulateUndo() {
+                const change = this.simulatorState.undo();
+                if (change) {
+                    this.updateStateVisualizer();
+                    document.getElementById('current-action').textContent = 
+                        `Undo: ${change.description || change.type} (${change.key})`;
+                    this.stateCount = this.simulatorState.size();
+                    this.updateDisplay();
+                } else {
+                    document.getElementById('current-action').textContent = 'هیچ عملیاتی برای Undo وجود ندارد';
+                }
+            }
+            
+            simulateRedo() {
+                const change = this.simulatorState.redo();
+                if (change) {
+                    this.updateStateVisualizer();
+                    document.getElementById('current-action').textContent = 
+                        `Redo: ${change.description || change.type} (${change.key})`;
+                    this.stateCount = this.simulatorState.size();
+                    this.updateDisplay();
+                } else {
+                    document.getElementById('current-action').textContent = 'هیچ عملیاتی برای Redo وجود ندارد';
+                }
+            }
+        }
+
+        // ============ راه‌اندازی و توابع عمومی ============
+        let stateTestManager;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            stateTestManager = new StateTestManager();
+            console.log('✅ سیستم تست مدیریت وضعیت Vakamova آماده است');
+        });
+
+        // توابع شبیه‌ساز برای دکمه‌های HTML
+        window.simulateSetState = () => stateTestManager.simulateSetState();
+        window.simulateUpdateState = () => stateTestManager.simulateUpdateState();
+        window.simulateDeleteState = () => stateTestManager.simulateDeleteState();
+        window.simulateNestedState = () => stateTestManager.simulateNestedState();
+        window.simulateUndo = () => stateTestManager.simulateUndo();
+        window.simulateRedo = () => stateTestManager.simulateRedo();
+    </script>
+</body>
+  </html>
