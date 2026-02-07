@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <title>تست API - بخش 2: احراز هویت</title>
+    <style>
+        body { font-family: Tahoma; padding: 20px; background: #f8f9fa; }
+        .test { 
+            background: white; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 10px; 
+            border-left: 5px solid #007bff;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        .test.error-test { border-left-color: #dc3545; }
+        .test.auth-test { border-left-color: #28a745; }
+        h1 { color: #2c3e50; text-align: center; }
+        h3 { color: #34495e; margin-top: 0; }
+        button { 
+            background: #3498db; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover { background: #2980b9; }
+        button:disabled { background: #95a5a6; cursor: not-allowed; }
+        .success { 
+            color: #27ae60; 
+            margin-top: 15px; 
+            padding: 12px; 
+            background: #d5f4e6; 
+            border-radius: 5px; 
+            border: 1px solid #2ecc71;
+        }
+        .error { 
+            color: #c0392b; 
+            margin-top: 15px; 
+            padding: 12px; 
+            background: #fadbd8; 
+            border-radius: 5px; 
+            border: 1px solid #e74c3c;
+        }
+        .loading { 
+            display: inline-block; 
+            width: 18px; 
+            height: 18px; 
+            border: 3px solid #ecf0f1; 
+            border-top-color: #3498db; 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .stats {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 30px;
+            text-align: center;
+            font-size: 18px;
+        }
+        .code {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            font-size: 13px;
+            direction: ltr;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔐 تست API - بخش 2: احراز هویت و مدیریت خطا</h1>
+    
+    <div class="test auth-test">
+        <h3>تست 1: تنظیم و دریافت توکن</h3>
+        <div class="code">client.setToken('token_123') → client.getToken()</div>
+        <button onclick="runTest1()">اجرا</button>
+        <div id="result1"></div>
+    </div>
+    
+    <div class="test auth-test">
+        <h3>تست 2: درخواست با توکن معتبر</h3>
+        <div class="code">GET /profile با Authorization header</div>
+        <button onclick="runTest2()">اجرا</button>
+        <div id="result2"></div>
+    </div>
+    
+    <div class="test error-test">
+        <h3>تست 3: خطای توکن نامعتبر</h3>
+        <div class="code">توکن منقضی شده → خطای 401</div>
+        <button onclick="runTest3()">اجرا</button>
+        <div id="result3"></div>
+    </div>
+    
+    <div class="test error-test">
+        <h3>تست 4: خطای شبکه (Timeout)</h3>
+        <div class="code">درخواست 3 ثانیه‌ای → Timeout بعد از 1 ثانیه</div>
+        <button onclick="runTest4()">اجرا</button>
+        <div id="result4"></div>
+    </div>
+    
+    <div style="text-align: center; margin: 30px 0;">
+        <button onclick="runAllTests()" style="padding: 15px 30px; background: #9b59b6; font-size: 16px;">
+            🚀 اجرای همه 4 تست
+        </button>
+        <button onclick="resetAll()" style="padding: 15px 30px; background: #7f8c8d; font-size: 16px;">
+            🔄 ریست همه
+        </button>
+    </div>
+    
+    <div class="stats">
+        <div>تست‌های موفق: <span id="passed">0</span> | تست‌های ناموفق: <span id="failed">0</span> | کل: 4</div>
+    </div>
+
+    <script>
+        // ========== Auth Api Client پیشرفته ==========
+        class AuthApiClient {
+            constructor() {
+                this.baseURL = 'https://api.vakamova.test';
+                this.token = null;
+                this.requestCount = 0;
+            }
+            
+            setToken(token) {
+                this.token = token;
+                console.log('توکن تنظیم شد:', token.substring(0, 15) + '...');
+                return true;
+            }
+            
+            getToken() {
+                return this.token;
+            }
+            
+            async request(method, endpoint, data = null, timeout = 5000) {
+                this.requestCount++;
+                const requestId = this.requestCount;
+                console.log(`درخواست #${requestId}: ${method} ${endpoint}`);
+                
+                // شبیه‌سازی timeout
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error(`Timeout بعد از ${timeout}ms`)), timeout);
+                });
+                
+                // شبیه‌سازی درخواست
+                const requestPromise = new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        // خطای توکن نامعتبر
+                        if (endpoint === '/profile' && this.token === 'expired_token') {
+                            reject({ 
+                                success: false, 
+                                error: 'توکن نامعتبر', 
+                                status: 401 
+                            });
+                            return;
+                        }
+                        
+                        // خطای شبکه
+                        if (endpoint === '/slow-endpoint') {
+                            // این درخواست هیچوقت پاسخ نمی‌دهد (برای تست timeout)
+                            return;
+                        }
+                        
+                        // پاسخ موفق
+                        resolve({
+                            success: true,
+                            data: {
+                                user: { id: 1, name: 'کاربر احراز شده' },
+                                endpoint: endpoint,
+                                method: method,
+                                hasToken: !!this.token
+                            },
+                            status: 200,
+                            requestId: requestId
+                        });
+                    }, 300);
+                });
+                
+                try {
+                    const result = await Promise.race([requestPromise, timeoutPromise]);
+                    console.log(`پاسخ #${requestId}: موفق`);
+                    return result;
+                } catch (error) {
+                    console.error(`پاسخ #${requestId}: خطا -`, error.message);
+                    throw error;
+                }
+            }
+            
+            async getProfile() {
+                if (!this.token) {
+                    throw new Error('توکن تنظیم نشده است');
+                }
+                return this.request('GET', '/profile');
+            }
+            
+            async getSlowEndpoint() {
+                return this.request('GET', '/slow-endpoint', null, 1000); // timeout کوتاه
+            }
+        }
+
+        // ========== متغیرهای تست ==========
+        let passedTests = 0;
+        let failedTests = 0;
+        const client = new AuthApiClient();
+
+        // ========== توابع کمکی ==========
+        function updateStats() {
+            document.getElementById('passed').textContent = passedTests;
+            document.getElementById('failed').textContent = failedTests;
+        }
+        
+        function setLoading(button, isLoading) {
+            if (isLoading) {
+                button.disabled = true;
+                button.innerHTML = '<span class="loading"></span>در حال اجرا...';
+            } else {
+                button.disabled = false;
+                button.textContent = 'اجرا';
+            }
+        }
+        
+        function showResult(elementId, success, message) {
+            const div = document.getElementById(elementId);
+            div.className = success ? 'success' : 'error';
+            div.innerHTML = success ? '✅ ' + message : '❌ ' + message;
+        }
+
+        // ========== تست‌ها ==========
+        async function runTest1() {
+            const btn = event.target;
+            setLoading(btn, true);
+            
+            try {
+                // تست تنظیم توکن
+                const token = 'valid_token_' + Date.now();
+                client.setToken(token);
+                
+                // تست دریافت توکن
+                const retrievedToken = client.getToken();
+                
+                if (!retrievedToken) {
+                    throw new Error('توکن ذخیره نشد');
+                }
+                
+                if (retrievedToken !== token) {
+                    throw new Error('توکن به درستی بازیابی نشد');
+                }
+                
+                showResult('result1', true, 
+                    `توکن با موفقیت تنظیم و بازیابی شد: ${token.substring(0, 20)}...`);
+                passedTests++;
+                
+            } catch (error) {
+                showResult('result1', false, 
+                    `خطا در مدیریت توکن: ${error.message}`);
+                failedTests++;
+            }
+            
+            setLoading(btn, false);
+            updateStats();
+        }
+        
+        async function runTest2() {
+            const btn = event.target;
+            setLoading(btn, true);
+            
+            try {
+                // تنظیم توکن معتبر
+                client.setToken('valid_token_' + Date.now());
+                
+                // درخواست با توکن
+                const result = await client.getProfile();
+                
+                if (!result.success) {
+                    throw new Error('درخواست ناموفق بود');
+                }
+                
+                if (!result.data.hasToken) {
+                    throw new Error('توکن در درخواست ارسال نشد');
+                }
+                
+                showResult('result2', true, 
+                    `درخواست احراز شده موفق - کاربر: ${result.data.user.name}`);
+                passedTests++;
+                
+            } catch (error) {
+                showResult('result2', false, 
+                    `خطا در درخواست احراز شده: ${error.message}`);
+                failedTests++;
+            }
+            
+            setLoading(btn, false);
+            updateStats();
+        }
+        
+        async function runTest3() {
+            const btn = event.target;
+            setLoading(btn, true);
+            
+            try {
+                // تنظیم توکن منقضی شده
+                client.setToken('expired_token');
+                
+                // این درخواست باید خطا بدهد
+                await client.getProfile();
+                
+                // اگر به این خط رسیدیم یعنی خطا نداد (که بد است)
+                throw new Error('باید خطای 401 می‌داد اما نداد!');
+                
+            } catch (error) {
+                // بررسی نوع خطا
+                if (error.status === 401 || error.message.includes('نامعتبر')) {
+                    showResult('result3', true, 
+                        `مدیریت خطای توکن نامعتبر صحیح کار کرد: ${error.error || error.message}`);
+                    passedTests++;
+                } else {
+                    showResult('result3', false, 
+                        `خطای نادرست: ${error.message}`);
+                    failedTests++;
+                }
+            }
+            
+            setLoading(btn, false);
+            updateStats();
+        }
+        
+        async function runTest4() {
+            const btn = event.target;
+            setLoading(btn, true);
+            
+            try {
+                // این درخواست باید timeout بخورد
+                await client.getSlowEndpoint();
+                
+                // اگر به این خط رسیدیم یعنی timeout نخورد (که بد است)
+                throw new Error('باید timeout می‌خورد اما نداد!');
+                
+            } catch (error) {
+                // بررسی timeout
+                if (error.message.includes('Timeout')) {
+                    showResult('result4', true, 
+                        `مدیریت timeout صحیح کار کرد: ${error.message}`);
+                    passedTests++;
+                } else {
+                    showResult('result4', false, 
+                        `خطای نادرست: ${error.message}`);
+                    failedTests++;
+                }
+            }
+            
+            setLoading(btn, false);
+            updateStats();
+        }
+        
+        // ========== توابع کنترل ==========
+        async function runAllTests() {
+            // ریست آمار
+            passedTests = 0;
+            failedTests = 0;
+            updateStats();
+            
+            // پاک کردن نتایج قبلی
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById('result' + i).innerHTML = '';
+                document.getElementById('result' + i).className = '';
+            }
+            
+            // اجرای تست‌ها با وقفه
+            await runTestWrapper(1);
+            await delay(600);
+            await runTestWrapper(2);
+            await delay(600);
+            await runTestWrapper(3);
+            await delay(600);
+            await runTestWrapper(4);
+            
+            console.log(`🎯 تست‌ها کامل شد: ${passedTests} موفق، ${failedTests} ناموفق`);
+        }
+        
+        async function runTestWrapper(testNumber) {
+            // شبیه‌سازی کلیک روی دکمه تست
+            const event = { target: document.querySelector(`button[onclick="runTest${testNumber}()"]`) };
+            window[`runTest${testNumber}`](event);
+            await delay(800); // زمان برای اجرای تست
+        }
+        
+        function resetAll() {
+            // ریست کلاینت
+            client.token = null;
+            client.requestCount = 0;
+            
+            // ریست نتایج
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById('result' + i).innerHTML = '';
+                document.getElementById('result' + i).className = '';
+            }
+            
+            // ریست آمار
+            passedTests = 0;
+            failedTests = 0;
+            updateStats();
+            
+            console.log('♻️ همه تست‌ها ریست شدند');
+        }
+        
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // ========== راه‌اندازی ==========
+        console.log('🔐 تست‌های احراز هویت API آماده اجرا');
+        updateStats();
+    </script>
+</body>
+</html>
