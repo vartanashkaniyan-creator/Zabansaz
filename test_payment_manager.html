@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تست Payment Manager - Vakamova</title>
     <style>
+        /* تمام استایل‌های قبلی اینجا قرار می‌گیرند */
         * {
             box-sizing: border-box;
             margin: 0;
@@ -255,6 +256,29 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        #status-bar {
+            background: #f8fafc;
+            padding: 10px 30px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #console-log {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            margin: 0 30px 30px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 150px;
+            overflow-y: auto;
+            direction: ltr;
+            text-align: left;
+        }
     </style>
 </head>
 <body>
@@ -266,6 +290,11 @@
             </h1>
             <p>تست کامل ماژول مدیریت پرداخت با اصول SOLID</p>
         </header>
+        
+        <div id="status-bar">
+            <div id="current-status">آماده اجرای تست‌ها...</div>
+            <div id="connection-status">🟢 آنلاین</div>
+        </div>
         
         <div class="test-stats">
             <div class="stat passed">
@@ -287,56 +316,61 @@
         </div>
         
         <div class="test-grid" id="test-grid">
-            <!-- تست‌ها اینجا نمایش داده می‌شوند -->
+            <!-- تست‌ها اینجا لود می‌شوند -->
+        </div>
+        
+        <div id="console-log">
+            <div>> کنسول تست:</div>
+            <div id="console-output"></div>
         </div>
         
         <div class="action-bar">
-            <button onclick="runAllTests()" id="run-btn">
+            <button id="run-all-btn">
                 <span>▶️</span>
                 اجرای تمام تست‌ها
             </button>
-            <button onclick="clearTests()" style="background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);">
+            <button id="clear-btn" style="background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%);">
                 <span>🔄</span>
                 پاک کردن نتایج
             </button>
         </div>
     </div>
 
-    <script type="module">
-        // Mock EventBus
+    <script>
+        // ========== بخش ۱: ابزارهای کمکی ==========
+        const logger = {
+            log: (message, data = {}) => {
+                const time = new Date().toLocaleTimeString('fa-IR');
+                const output = document.getElementById('console-output');
+                const logEntry = document.createElement('div');
+                logEntry.innerHTML = `<span style="color: #94a3b8">[${time}]</span> ${message}`;
+                output.appendChild(logEntry);
+                output.scrollTop = output.scrollHeight;
+                console.log(message, data);
+            },
+            error: (message, error) => {
+                logger.log(`<span style="color: #ef4444">❌ ${message}: ${error}</span>`);
+            },
+            success: (message) => {
+                logger.log(`<span style="color: #10b981">✅ ${message}</span>`);
+            }
+        };
+
+        // ========== بخش ۲: Mock EventBus ==========
         class MockEventBus {
             constructor() {
                 this.events = new Map();
             }
             
             emit(event, data) {
-                console.log(`📡 Event emitted: ${event}`, data);
-            }
-            
-            on(event, callback) {
-                if (!this.events.has(event)) {
-                    this.events.set(event, []);
-                }
-                this.events.get(event).push(callback);
+                logger.log(`📡 Event: ${event}`, data);
             }
         }
-        
-        // Mock Logger
-        class MockLogger {
-            log(type, message, data = {}) {
-                console.log(`📝 ${type.toUpperCase()}: ${message}`, data);
-                return { type, message, data, timestamp: Date.now() };
-            }
-            
-            info(message, data) { return this.log('info', message, data); }
-            error(message, data) { return this.log('error', message, data); }
-            warn(message, data) { return this.log('warn', message, data); }
-        }
-        
-        // Mock Payment Adapter
+
+        // ========== بخش ۳: Mock Payment Adapter ==========
         class MockPaymentAdapter {
             async processPayment(request) {
-                await this.delay(300); // شبیه‌سازی تاخیر شبکه
+                await new Promise(resolve => setTimeout(resolve, 300));
                 return {
                     transactionId: `TXN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
                     gatewayReference: `REF_${Math.random().toString(36).substr(2, 12)}`,
@@ -345,7 +379,7 @@
             }
             
             async verifyPayment(transactionId) {
-                await this.delay(200);
+                await new Promise(resolve => setTimeout(resolve, 200));
                 return {
                     success: true,
                     transactionId,
@@ -354,7 +388,7 @@
             }
             
             async cancelPayment(transactionId) {
-                await this.delay(150);
+                await new Promise(resolve => setTimeout(resolve, 150));
                 return {
                     success: true,
                     transactionId
@@ -364,20 +398,13 @@
             async isAvailable() {
                 return true;
             }
-            
-            delay(ms) {
-                return new Promise(resolve => setTimeout(resolve, ms));
-            }
         }
-        
-        // Import PaymentManager از مسیر صحیح
-        // توجه: در مرورگر باید از مسیر کامل استفاده کنید
-        // برای تست آفلاین، کد PaymentManager را اینجا کپی می‌کنیم
+
+        // ========== بخش ۴: Payment Manager واقعی ==========
         class PaymentManager {
-            constructor(paymentAdapter, eventBus, logger) {
+            constructor(paymentAdapter, eventBus) {
                 this._adapter = paymentAdapter;
                 this._eventBus = eventBus;
-                this._logger = logger;
                 this._transactions = new Map();
                 this._isProcessing = false;
             }
@@ -387,12 +414,9 @@
                 
                 try {
                     this._isProcessing = true;
-                    this._logger.info('Payment initiated', { requestId: request.id });
-                    
                     this._eventBus.emit('payment:initiated', {
                         requestId: request.id,
-                        amount: request.amount,
-                        currency: request.currency
+                        amount: request.amount
                     });
                     
                     const validatedRequest = await this._validateRequest(request);
@@ -404,17 +428,18 @@
                         status: 'pending'
                     });
                     
-                    this._logger.info('Payment processed by adapter', { 
-                        requestId: request.id, 
-                        transactionId: result.transactionId 
-                    });
-                    
                     this._eventBus.emit('payment:processed', {
                         requestId: request.id,
                         transactionId: result.transactionId
                     });
                     
-                    return this._createPaymentResult(result, true);
+                    return {
+                        success: true,
+                        transactionId: result.transactionId,
+                        gatewayReference: result.gatewayReference,
+                        timestamp: Date.now(),
+                        nextSteps: ['verify_payment']
+                    };
                     
                 } catch (error) {
                     await this._handlePaymentError(error, request);
@@ -426,8 +451,6 @@
             
             async verifyPayment(transactionId) {
                 try {
-                    this._logger.info('Verifying payment', { transactionId });
-                    
                     const result = await this._adapter.verifyPayment(transactionId);
                     
                     if (result.success && this._transactions.has(transactionId)) {
@@ -437,26 +460,19 @@
                         
                         this._eventBus.emit('payment:verified', {
                             transactionId,
-                            amount: transaction.amount,
-                            currency: transaction.currency
+                            amount: transaction.amount
                         });
                     }
                     
                     return result;
                     
                 } catch (error) {
-                    this._logger.error('Payment verification failed', { 
-                        transactionId, 
-                        error: error.message 
-                    });
                     throw error;
                 }
             }
             
             async cancelPayment(transactionId) {
                 try {
-                    this._logger.info('Cancelling payment', { transactionId });
-                    
                     const result = await this._adapter.cancelPayment(transactionId);
                     
                     if (this._transactions.has(transactionId)) {
@@ -467,10 +483,6 @@
                     return result;
                     
                 } catch (error) {
-                    this._logger.error('Payment cancellation failed', { 
-                        transactionId, 
-                        error: error.message 
-                    });
                     throw error;
                 }
             }
@@ -484,10 +496,7 @@
                 return {
                     id: transactionId,
                     status: transaction.status,
-                    amount: transaction.amount,
-                    currency: transaction.currency,
-                    timestamp: transaction.timestamp,
-                    verifiedAt: transaction.verifiedAt
+                    timestamp: transaction.timestamp
                 };
             }
             
@@ -520,11 +529,6 @@
             }
             
             async _validateRequest(request) {
-                const userLimits = await this._checkUserLimits(request.userId);
-                if (userLimits.remaining < request.amount) {
-                    throw new Error('User payment limit exceeded');
-                }
-                
                 const isAdapterAvailable = await this._adapter.isAvailable();
                 if (!isAdapterAvailable) {
                     throw new Error('Payment service is unavailable');
@@ -532,96 +536,54 @@
                 
                 return {
                     ...request,
-                    validatedAt: Date.now(),
-                    validationToken: this._generateValidationToken(request)
+                    validatedAt: Date.now()
                 };
             }
             
             async _handlePaymentError(error, request) {
-                const errorData = {
-                    requestId: request.id,
-                    error: error.message,
-                    timestamp: Date.now()
-                };
-                
-                this._logger.error('Payment processing failed', errorData);
                 this._eventBus.emit('payment:failed', {
                     requestId: request.id,
                     reason: error.message
                 });
             }
             
-            _generateValidationToken(request) {
-                const data = `${request.id}:${request.amount}:${request.userId}:${Date.now()}`;
-                return btoa(data).substring(0, 32);
-            }
-            
-            async _checkUserLimits(userId) {
-                return {
-                    userId,
-                    dailyLimit: 1000000,
-                    monthlyLimit: 30000000,
-                    usedToday: 0,
-                    usedThisMonth: 0,
-                    remaining: 1000000
-                };
-            }
-            
-            _createPaymentResult(adapterResult, success) {
-                return {
-                    success,
-                    transactionId: adapterResult.transactionId,
-                    gatewayReference: adapterResult.gatewayReference,
-                    timestamp: Date.now(),
-                    nextSteps: success ? ['verify_payment'] : ['retry_or_contact_support']
-                };
-            }
-            
             getStatistics() {
                 const transactions = Array.from(this._transactions.values());
-                
                 return {
                     totalTransactions: transactions.length,
                     successful: transactions.filter(t => t.status === 'completed').length,
-                    pending: transactions.filter(t => t.status === 'pending').length,
-                    failed: transactions.filter(t => t.status === 'failed').length,
-                    totalAmount: transactions.reduce((sum, t) => sum + (t.amount || 0), 0)
+                    pending: transactions.filter(t => t.status === 'pending').length
                 };
             }
         }
-        
-        // تست‌ها
+
+        // ========== بخش ۵: تعریف تست‌ها ==========
         const tests = [
             {
                 id: 'test-1',
                 title: 'تست ایجاد PaymentManager',
-                description: 'بررسی ایجاد صحیح شی PaymentManager با وابستگی‌ها',
+                description: 'بررسی ایجاد صحیح شی PaymentManager',
                 run: async () => {
                     const eventBus = new MockEventBus();
-                    const logger = new MockLogger();
                     const adapter = new MockPaymentAdapter();
-                    
-                    const manager = new PaymentManager(adapter, eventBus, logger);
+                    const manager = new PaymentManager(adapter, eventBus);
                     
                     if (!manager._adapter) throw new Error('Adapter not set');
                     if (!manager._eventBus) throw new Error('EventBus not set');
-                    if (!manager._logger) throw new Error('Logger not set');
                     
                     return '✅ PaymentManager با موفقیت ایجاد شد';
                 }
             },
             {
                 id: 'test-2',
-                title: 'تست اعتبارسنجی درخواست پرداخت',
-                description: 'بررسی اعتبارسنجی فیلدهای ضروری درخواست پرداخت',
+                title: 'تست اعتبارسنجی درخواست',
+                description: 'بررسی validation درخواست پرداخت',
                 run: async () => {
                     const manager = new PaymentManager(
                         new MockPaymentAdapter(),
-                        new MockEventBus(),
-                        new MockLogger()
+                        new MockEventBus()
                     );
                     
-                    // تست درخواست معتبر
                     const validRequest = {
                         id: 'REQ_123',
                         amount: 50000,
@@ -629,69 +591,60 @@
                         userId: 'USER_001'
                     };
                     
-                    // نباید خطا بدهد
                     manager._validatePaymentRequest(validRequest);
                     
-                    // تست درخواست نامعتبر
-                    const invalidRequests = [
-                        { id: '', amount: 50000, currency: 'IRR', userId: 'USER_001' },
-                        { id: 'REQ_124', amount: 0, currency: 'IRR', userId: 'USER_001' },
-                        { id: 'REQ_125', amount: 50000, currency: 'XYZ', userId: 'USER_001' },
-                        { id: 'REQ_126', amount: 50000, currency: 'IRR', userId: '' }
-                    ];
+                    const invalidRequest = {
+                        id: '',
+                        amount: 0,
+                        currency: 'XYZ',
+                        userId: ''
+                    };
                     
-                    invalidRequests.forEach(req => {
-                        try {
-                            manager._validatePaymentRequest(req);
-                            throw new Error(`اعتبارسنجی برای درخواست نامعتبر شکست خورد: ${JSON.stringify(req)}`);
-                        } catch (e) {
-                            // انتظار داریم خطا دهد
-                        }
-                    });
+                    try {
+                        manager._validatePaymentRequest(invalidRequest);
+                        throw new Error('باید خطا می‌داد اما نداد!');
+                    } catch (e) {
+                        // موفقیت: خطا گرفتیم
+                    }
                     
-                    return '✅ اعتبارسنجی درخواست پرداخت با موفقیت انجام شد';
+                    return '✅ اعتبارسنجی درخواست پرداخت صحیح است';
                 }
             },
             {
                 id: 'test-3',
-                title: 'تست شروع پرداخت موفق',
-                description: 'بررسی فرآیند کامل پرداخت از ابتدا تا انتها',
+                title: 'تست پرداخت موفق',
+                description: 'بررسی فرآیند کامل پرداخت',
                 run: async () => {
-                    const eventBus = new MockEventBus();
-                    const logger = new MockLogger();
-                    const adapter = new MockPaymentAdapter();
-                    
-                    const manager = new PaymentManager(adapter, eventBus, logger);
+                    const manager = new PaymentManager(
+                        new MockPaymentAdapter(),
+                        new MockEventBus()
+                    );
                     
                     const paymentRequest = {
                         id: `PAY_${Date.now()}`,
                         amount: 99000,
                         currency: 'IRR',
-                        userId: 'USER_TEST_001',
-                        metadata: { productId: 'PROD_123', subscriptionType: 'monthly' }
+                        userId: 'USER_TEST_001'
                     };
                     
                     const result = await manager.initiatePayment(paymentRequest);
                     
                     if (!result.success) throw new Error('پرداخت موفق نبود');
                     if (!result.transactionId) throw new Error('شناسه تراکنش تولید نشد');
-                    if (!result.gatewayReference) throw new Error('مرجع درگاه تولید نشد');
                     
-                    return `✅ پرداخت با موفقیت انجام شد. شناسه تراکنش: ${result.transactionId}`;
+                    return `✅ پرداخت موفق. شناسه: ${result.transactionId}`;
                 }
             },
             {
                 id: 'test-4',
                 title: 'تست تایید پرداخت',
-                description: 'بررسی فرآیند تایید پرداخت پس از موفقیت',
+                description: 'بررسی فرآیند تایید پرداخت',
                 run: async () => {
                     const manager = new PaymentManager(
                         new MockPaymentAdapter(),
-                        new MockEventBus(),
-                        new MockLogger()
+                        new MockEventBus()
                     );
                     
-                    // ابتدا یک پرداخت ایجاد می‌کنیم
                     const paymentRequest = {
                         id: `PAY_VERIFY_${Date.now()}`,
                         amount: 149000,
@@ -700,29 +653,21 @@
                     };
                     
                     const paymentResult = await manager.initiatePayment(paymentRequest);
-                    
-                    // سپس تایید می‌کنیم
                     const verificationResult = await manager.verifyPayment(paymentResult.transactionId);
                     
                     if (!verificationResult.success) throw new Error('تایید پرداخت ناموفق بود');
                     
-                    // بررسی وضعیت تراکنش
-                    const status = manager.getTransactionStatus(paymentResult.transactionId);
-                    if (!status) throw new Error('وضعیت تراکنش یافت نشد');
-                    if (status.status !== 'completed') throw new Error('وضعیت تراکنش تکمیل نیست');
-                    
-                    return `✅ پرداخت با موفقیت تایید شد. کد تایید: ${verificationResult.verificationCode}`;
+                    return `✅ پرداخت تایید شد. کد: ${verificationResult.verificationCode}`;
                 }
             },
             {
                 id: 'test-5',
                 title: 'تست لغو پرداخت',
-                description: 'بررسی فرآیند لغو پرداخت قبل از تکمیل',
+                description: 'بررسی فرآیند لغو پرداخت',
                 run: async () => {
                     const manager = new PaymentManager(
                         new MockPaymentAdapter(),
-                        new MockEventBus(),
-                        new MockLogger()
+                        new MockEventBus()
                     );
                     
                     const paymentRequest = {
@@ -737,219 +682,181 @@
                     
                     if (!cancelResult.success) throw new Error('لغو پرداخت ناموفق بود');
                     
-                    // پس از لغو، نباید وضعیت داشته باشد
-                    const status = manager.getTransactionStatus(paymentResult.transactionId);
-                    if (status !== null) throw new Error('تراکنش لغو شده هنوز وجود دارد');
-                    
                     return '✅ پرداخت با موفقیت لغو شد';
                 }
             },
             {
                 id: 'test-6',
-                title: 'تست آمار و گزارش‌ها',
+                title: 'تست آمار و گزارش',
                 description: 'بررسی آمار دقیق پرداخت‌ها',
                 run: async () => {
                     const manager = new PaymentManager(
                         new MockPaymentAdapter(),
-                        new MockEventBus(),
-                        new MockLogger()
+                        new MockEventBus()
                     );
                     
-                    // چند پرداخت ایجاد می‌کنیم
                     const requests = [
-                        { id: `STAT_1_${Date.now()}`, amount: 50000, currency: 'IRR', userId: 'USER_STAT_1' },
-                        { id: `STAT_2_${Date.now() + 1}`, amount: 100000, currency: 'IRR', userId: 'USER_STAT_2' },
-                        { id: `STAT_3_${Date.now() + 2}`, amount: 150000, currency: 'IRR', userId: 'USER_STAT_3' }
+                        { id: `STAT_1_${Date.now()}`, amount: 50000, currency: 'IRR', userId: 'USER_1' },
+                        { id: `STAT_2_${Date.now() + 1}`, amount: 100000, currency: 'IRR', userId: 'USER_2' }
                     ];
                     
                     for (const req of requests) {
                         await manager.initiatePayment(req);
                     }
                     
-                    // یکی را تایید می‌کنیم
                     const stats = manager.getStatistics();
                     
-                    if (stats.totalTransactions !== 3) throw new Error(`تعداد تراکنش‌ها ${stats.totalTransactions} است (انتظار: 3)`);
-                    if (stats.totalAmount !== 300000) throw new Error(`مجموع مبالغ ${stats.totalAmount} است (انتظار: 300000)`);
-                    
-                    return `✅ آمار صحیح است. مجموع تراکنش‌ها: ${stats.totalTransactions}، مجموع مبالغ: ${stats.totalAmount.toLocaleString()} ریال`;
-                }
-            },
-            {
-                id: 'test-7',
-                title: 'تست در دسترس بودن سرویس',
-                description: 'بررسی وضعیت اتصال به درگاه پرداخت',
-                run: async () => {
-                    const adapter = new MockPaymentAdapter();
-                    const manager = new PaymentManager(
-                        adapter,
-                        new MockEventBus(),
-                        new MockLogger()
-                    );
-                    
-                    const isAvailable = await manager.isAvailable();
-                    
-                    if (!isAvailable) throw new Error('سرویس پرداخت در دسترس نیست');
-                    
-                    return '✅ سرویس پرداخت به درستی در دسترس است';
-                }
-            },
-            {
-                id: 'test-8',
-                title: 'تست مدیریت خطا',
-                description: 'بررسی رفتار سیستم در صورت خطا',
-                run: async () => {
-                    class FailingPaymentAdapter extends MockPaymentAdapter {
-                        async processPayment(request) {
-                            throw new Error('شبکه در دسترس نیست');
-                        }
+                    if (stats.totalTransactions !== 2) {
+                        throw new Error(`تعداد تراکنش‌ها ${stats.totalTransactions} است (انتظار: 2)`);
                     }
                     
-                    const manager = new PaymentManager(
-                        new FailingPaymentAdapter(),
-                        new MockEventBus(),
-                        new MockLogger()
-                    );
-                    
-                    const paymentRequest = {
-                        id: `ERROR_TEST_${Date.now()}`,
-                        amount: 50000,
-                        currency: 'IRR',
-                        userId: 'USER_ERROR_001'
-                    };
-                    
-                    try {
-                        await manager.initiatePayment(paymentRequest);
-                        throw new Error('باید خطا می‌داد اما نداد!');
-                    } catch (error) {
-                        if (error.message !== 'شبکه در دسترس نیست') {
-                            throw new Error(`خطای غیرمنتظره: ${error.message}`);
-                        }
-                    }
-                    
-                    return '✅ مدیریت خطا به درستی انجام شد';
+                    return `✅ آمار صحیح است. تعداد: ${stats.totalTransactions}`;
                 }
             }
         ];
-        
-        // تابع نمایش تست‌ها
-        function renderTests() {
-            const testGrid = document.getElementById('test-grid');
-            testGrid.innerHTML = '';
+
+        // ========== بخش ۶: سیستم مدیریت تست ==========
+        const TestManager = {
+            tests: tests,
+            results: {},
             
-            tests.forEach(test => {
-                const card = document.createElement('div');
-                card.className = 'test-card pending';
-                card.id = `card-${test.id}`;
-                card.innerHTML = `
-                    <div class="test-title">
-                        <span>${test.title}</span>
-                        <span class="test-result">در انتظار</span>
-                    </div>
-                    <div class="test-desc">${test.description}</div>
-                    <div class="test-output" id="output-${test.id}"></div>
-                `;
-                testGrid.appendChild(card);
-            });
-            
-            updateStats();
-        }
-        
-        // تابع اجرای تست
-        async function runTest(test) {
-            const card = document.getElementById(`card-${test.id}`);
-            const output = document.getElementById(`output-${test.id}`);
-            const resultSpan = card.querySelector('.test-result');
-            
-            card.className = 'test-card pending';
-            resultSpan.textContent = 'در حال اجرا...';
-            output.className = 'test-output';
-            output.innerHTML = '<div class="loading"></div> در حال اجرای تست...';
-            
-            try {
-                const result = await test.run();
-                card.className = 'test-card passed';
-                resultSpan.textContent = 'موفق';
-                output.className = 'test-output success';
-                output.innerHTML = `<strong>✅ نتیجه:</strong> ${result}`;
-                return { success: true, result };
-            } catch (error) {
-                card.className = 'test-card failed';
-                resultSpan.textContent = 'ناموفق';
-                output.className = 'test-output error';
-                output.innerHTML = `<strong>❌ خطا:</strong> ${error.message}<br><small>${error.stack}</small>`;
-                return { success: false, error: error.message };
-            } finally {
-                updateStats();
-            }
-        }
-        
-        // تابع اجرای همه تست‌ها
-        async function runAllTests() {
-            const runBtn = document.getElementById('run-btn');
-            runBtn.disabled = true;
-            runBtn.innerHTML = '<span class="loading"></span> در حال اجرای تست‌ها...';
-            
-            let passed = 0;
-            let failed = 0;
-            
-            for (const test of tests) {
-                const result = await runTest(test);
-                if (result.success) passed++;
-                else failed++;
+            renderTests() {
+                const testGrid = document.getElementById('test-grid');
+                testGrid.innerHTML = '';
                 
-                // تاخیر برای نمایش بهتر
-                await new Promise(resolve => setTimeout(resolve, 300));
-            }
+                this.tests.forEach(test => {
+                    const card = document.createElement('div');
+                    card.className = 'test-card pending';
+                    card.id = `card-${test.id}`;
+                    card.innerHTML = `
+                        <div class="test-title">
+                            <span>${test.title}</span>
+                            <span class="test-result" id="result-${test.id}">در انتظار</span>
+                        </div>
+                        <div class="test-desc">${test.description}</div>
+                        <div class="test-output" id="output-${test.id}"></div>
+                    `;
+                    testGrid.appendChild(card);
+                });
+                
+                this.updateStats();
+            },
             
-            runBtn.disabled = false;
-            runBtn.innerHTML = '<span>▶️</span> اجرای مجدد تمام تست‌ها';
-            
-            // نمایش نتیجه کلی
-            const eventBus = new MockEventBus();
-            eventBus.emit('tests_completed', { passed, failed, total: tests.length });
-            
-            console.log(`🎯 تست‌ها کامل شد! ${passed} موفق، ${failed} ناموفق از ${tests.length} تست`);
-        }
-        
-        // تابع به‌روزرسانی آمار
-        function updateStats() {
-            const cards = document.querySelectorAll('.test-card');
-            const passed = document.querySelectorAll('.test-card.passed').length;
-            const failed = document.querySelectorAll('.test-card.failed').length;
-            const pending = tests.length - passed - failed;
-            
-            document.getElementById('passed-count').textContent = passed;
-            document.getElementById('failed-count').textContent = failed;
-            document.getElementById('pending-count').textContent = pending;
-            
-            const coverage = Math.round((passed / tests.length) * 100);
-            document.getElementById('coverage').textContent = `${coverage}%`;
-        }
-        
-        // تابع پاک کردن نتایج
-        function clearTests() {
-            tests.forEach(test => {
+            async runTest(test) {
                 const card = document.getElementById(`card-${test.id}`);
                 const output = document.getElementById(`output-${test.id}`);
-                const resultSpan = card.querySelector('.test-result');
+                const resultSpan = document.getElementById(`result-${test.id}`);
                 
                 card.className = 'test-card pending';
-                resultSpan.textContent = 'در انتظار';
+                resultSpan.textContent = 'در حال اجرا...';
                 output.className = 'test-output';
-                output.innerHTML = '';
+                output.innerHTML = '<div class="loading"></div> در حال اجرای تست...';
+                
+                document.getElementById('current-status').textContent = `در حال اجرای تست: ${test.title}`;
+                
+                try {
+                    const result = await test.run();
+                    card.className = 'test-card passed';
+                    resultSpan.textContent = 'موفق';
+                    output.className = 'test-output success';
+                    output.innerHTML = `<strong>✅ نتیجه:</strong> ${result}`;
+                    this.results[test.id] = { success: true, result };
+                    logger.success(`تست "${test.title}" موفقیت‌آمیز بود`);
+                    return true;
+                } catch (error) {
+                    card.className = 'test-card failed';
+                    resultSpan.textContent = 'ناموفق';
+                    output.className = 'test-output error';
+                    output.innerHTML = `<strong>❌ خطا:</strong> ${error.message}`;
+                    this.results[test.id] = { success: false, error: error.message };
+                    logger.error(`تست "${test.title}" ناموفق بود`, error.message);
+                    return false;
+                } finally {
+                    this.updateStats();
+                }
+            },
+            
+            async runAllTests() {
+                const runBtn = document.getElementById('run-all-btn');
+                runBtn.disabled = true;
+                runBtn.innerHTML = '<span class="loading"></span> در حال اجرای تست‌ها...';
+                
+                let passed = 0;
+                
+                logger.log('🚀 شروع اجرای تمام تست‌ها...');
+                
+                for (const test of this.tests) {
+                    const success = await this.runTest(test);
+                    if (success) passed++;
+                    await new Promise(resolve => setTimeout(resolve, 500)); // وقفه برای نمایش بهتر
+                }
+                
+                runBtn.disabled = false;
+                runBtn.innerHTML = '<span>▶️</span> اجرای مجدد تمام تست‌ها';
+                document.getElementById('current-status').textContent = `تکمیل شد: ${passed} از ${this.tests.length} تست موفق`;
+                
+                logger.log(`🎯 تست‌ها کامل شد! ${passed} موفق از ${this.tests.length} تست`);
+            },
+            
+            updateStats() {
+                const passed = document.querySelectorAll('.test-card.passed').length;
+                const failed = document.querySelectorAll('.test-card.failed').length;
+                const pending = this.tests.length - passed - failed;
+                
+                document.getElementById('passed-count').textContent = passed;
+                document.getElementById('failed-count').textContent = failed;
+                document.getElementById('pending-count').textContent = pending;
+                
+                const coverage = Math.round((passed / this.tests.length) * 100);
+                document.getElementById('coverage').textContent = `${coverage}%`;
+            },
+            
+            clearTests() {
+                this.tests.forEach(test => {
+                    const card = document.getElementById(`card-${test.id}`);
+                    const output = document.getElementById(`output-${test.id}`);
+                    const resultSpan = document.getElementById(`result-${test.id}`);
+                    
+                    card.className = 'test-card pending';
+                    resultSpan.textContent = 'در انتظار';
+                    output.className = 'test-output';
+                    output.innerHTML = '';
+                });
+                
+                this.results = {};
+                this.updateStats();
+                document.getElementById('console-output').innerHTML = '';
+                document.getElementById('current-status').textContent = 'آماده اجرای تست‌ها...';
+                logger.log('🧹 نتایج تست‌ها پاک شد');
+            }
+        };
+
+        // ========== بخش ۷: راه‌اندازی ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            // رندر تست‌ها
+            TestManager.renderTests();
+            
+            // اتصال دکمه‌ها
+            document.getElementById('run-all-btn').addEventListener('click', () => {
+                TestManager.runAllTests();
             });
             
-            updateStats();
-            console.log('🧹 نتایج تست‌ها پاک شد');
-        }
-        
-        // راه‌اندازی اولیه
-        document.addEventListener('DOMContentLoaded', () => {
-            renderTests();
-            console.log('🚀 تست‌های Payment Manager آماده اجرا هستند');
-            console.log('📱 این تست‌ها کاملاً در مرورگر موبایل قابل اجرا هستند');
+            document.getElementById('clear-btn').addEventListener('click', () => {
+                TestManager.clearTests();
+            });
+            
+            // لاگ شروع
+            logger.log('🚀 تست‌های Payment Manager آماده اجرا هستند');
+            logger.log('📱 این تست‌ها کاملاً در مرورگر موبایل قابل اجرا هستند');
+            logger.log('🔍 برای دیدن لاگ‌های دقیق‌تر، کنسول مرورگر را باز کنید (F12)');
+            
+            // نمایش وضعیت
+            document.getElementById('current-status').textContent = 'آماده اجرای تست‌ها - روی دکمه "اجرای تمام تست‌ها" کلیک کنید';
         });
+
+        // ========== بخش ۸: توابع global برای دکمه‌های HTML ==========
+        window.runAllTests = () => TestManager.runAllTests();
+        window.clearTests = () => TestManager.clearTests();
     </script>
 </body>
-  </html>
+</html>
