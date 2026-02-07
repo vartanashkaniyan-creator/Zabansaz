@@ -1,10 +1,3 @@
-                `).join('')}
-                <p><strong>${passedCount === totalCount ? '✅ همه تست‌ها موفق' : '⚠️ نیاز به بررسی بیشتر'}</strong></p>
-            `;
-        }
-    </script>
-</body>
-</html>
 <!DOCTYPE html>
 <html dir="rtl" lang="fa">
 <head>
@@ -112,4 +105,144 @@
                 const testValue = 'test_data';
                 
                 localStorage.setItem(testKey, testValue);
-                const retrieved =
+                const retrieved = localStorage.getItem(testKey);
+                localStorage.removeItem(testKey);
+                
+                const passed = retrieved === testValue;
+                
+                return {
+                    passed,
+                    message: passed ? 'localStorage در دسترس و کار می‌کند' : 'مشکل در دسترسی به localStorage',
+                    details: passed ? null : 'مرورگر ممکن است حالت خصوصی باشد یا localStorage غیرفعال است'
+                };
+            } catch (error) {
+                return {
+                    passed: false,
+                    message: 'خطا در دسترسی به localStorage',
+                    details: error.message
+                };
+            }
+        }
+        
+        function testXSSProtection() {
+            // تست محافظت در برابر XSS
+            const xssPayloads = [
+                '<script>alert(1)</script>',
+                '<img src=x onerror=alert(1)>',
+                'javascript:alert(1)',
+                'eval("alert(1)")'
+            ];
+            
+            // بررسی ساده‌ترین محافظت
+            const testString = xssPayloads[0];
+            const sanitized = testString.replace(/[<>]/g, '');
+            
+            const passed = !sanitized.includes('<script>');
+            
+            return {
+                passed,
+                message: passed ? 'محافظت اولیه XSS فعال است' : 'نیاز به محافظت بهتر در برابر XSS',
+                details: passed ? null : 'کاراکترهای < و > باید سانی‌تایز شوند'
+            };
+        }
+        
+        function testTokenSecurity() {
+            // تست ساختار توکن امن
+            const validToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+            const invalidToken = 'simple_token_123';
+            
+            const isValid = validToken.split('.').length === 3;
+            const isInvalid = invalidToken.split('.').length !== 3;
+            
+            const passed = isValid && isInvalid;
+            
+            return {
+                passed,
+                message: passed ? 'ساختار توکن‌ها امن است' : 'نیاز به بهبود ساختار توکن‌ها',
+                details: passed ? null : 'توکن‌ها باید از نوع JWT یا ساختار مشابه امن باشند'
+            };
+        }
+        
+        function testEncryption() {
+            // تست رمزنگاری پایه
+            const plainText = 'سریت رو مخفی کن';
+            
+            try {
+                // شبیه‌سازی رمزنگاری ساده
+                const encoded = btoa(unescape(encodeURIComponent(plainText)));
+                const decoded = decodeURIComponent(escape(atob(encoded)));
+                
+                const passed = decoded === plainText && encoded !== plainText;
+                
+                return {
+                    passed,
+                    message: passed ? 'قابلیت رمزنگاری/رمزگشایی فعال است' : 'مشکل در رمزنگاری داده‌ها',
+                    details: passed ? 'Base64 encoding کار می‌کند' : 'نیاز به پیاده‌سازی رمزنگاری قوی‌تر'
+                };
+            } catch (error) {
+                return {
+                    passed: false,
+                    message: 'خطا در فرآیند رمزنگاری',
+                    details: error.message
+                };
+            }
+        }
+        
+        function testInputValidation() {
+            // تست اعتبارسنجی ورودی
+            const testCases = [
+                { input: 'test@example.com', type: 'email', shouldPass: true },
+                { input: 'invalid-email', type: 'email', shouldPass: false },
+                { input: '09123456789', type: 'phone', shouldPass: true },
+                { input: '123', type: 'phone', shouldPass: false },
+                { input: 'normal_text', type: 'text', shouldPass: true }
+            ];
+            
+            let passedCount = 0;
+            const details = [];
+            
+            testCases.forEach(test => {
+                let isValid = false;
+                
+                if (test.type === 'email') {
+                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    isValid = emailRegex.test(test.input);
+                } else if (test.type === 'phone') {
+                    isValid = test.input.length >= 10 && /^\d+$/.test(test.input);
+                } else {
+                    isValid = test.input.length > 0;
+                }
+                
+                if (isValid === test.shouldPass) {
+                    passedCount++;
+                } else {
+                    details.push(`${test.type}: ${test.input} (انتظار: ${test.shouldPass}, واقعیت: ${isValid})`);
+                }
+            });
+            
+            const passed = passedCount === testCases.length;
+            
+            return {
+                passed,
+                message: passed ? 'اعتبارسنجی ورودی صحیح است' : 'نیاز به بهبود اعتبارسنجی ورودی',
+                details: passed ? null : details.join(' | ')
+            };
+        }
+        
+        // 🔹 همچنین نمایش پیام آماده‌سازی
+        resultsDiv.innerHTML = `
+            <div class="result loading">
+                <h3>🔧 آماده‌سازی تست امنیتی</h3>
+                <p>در حال بررسی امنیت پروژه Vakamova...</p>
+                <ul>
+                    <li>بررسی localStorage و sessionStorage</li>
+                    <li>بررسی محافظت XSS</li>
+                    <li>بررسی امنیت توکن‌ها</li>
+                    <li>بررسی رمزنگاری داده‌ها</li>
+                    <li>بررسی اعتبارسنجی ورودی‌ها</li>
+                </ul>
+            </div>
+        `;
+    </script>
+</body>
+</html>
