@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست تراکنش‌های دیتابیس - Vakamova</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:tahoma;background:#0d47a1;color:#333;padding:20px}.container{max-width:800px;margin:auto;background:#fff;border-radius:10px;overflow:hidden}header{background:#1565c0;color:#fff;padding:20px;text-align:center}h1{font-size:1.5rem}.test-section{padding:20px}.test-item{background:#f5f5f5;border-radius:8px;padding:15px;margin-bottom:15px;border-right:5px solid #5c6bc0}.passed{border-right-color:#43a047;background:#e8f5e9}.failed{border-right-color:#e53935;background:#ffebee}.running{border-right-color:#fb8c00;background:#fff3e0}.test-header{display:flex;justify-content:space-between;margin-bottom:10px}.test-name{font-weight:bold}.test-status{padding:3px 10px;border-radius:12px;font-size:.8rem}.status-pending{background:#fff9c4;color:#f57c00}.status-running{background:#bbdefb;color:#1565c0}.status-passed{background:#c8e6c9;color:#2e7d32}.status-failed{background:#ffcdd2;color:#c62828}button{background:#1565c0;color:#fff;border:none;padding:12px 25px;border-radius:8px;font-size:1rem;cursor:pointer;width:100%;margin-top:15px}button:hover{background:#0d47a1}.console{background:#263238;color:#80cbc4;padding:15px;margin-top:20px;border-radius:8px;font-family:monospace;font-size:.9rem;max-height:200px;overflow-y:auto}.log{padding:5px 0;border-bottom:1px solid #37474f}.stats{display:flex;justify-content:space-around;background:#e3f2fd;padding:10px;border-radius:8px;margin-bottom:15px}.stat-item{text-align:center}.stat-value{font-size:1.2rem;font-weight:bold}.stat-label{font-size:.8rem;color:#546e7a}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header><h1>⚡ تست تراکنش‌های پیچیده - Atomic Operations</h1></header>
+        <div class="test-section">
+            <div class="stats">
+                <div class="stat-item"><div class="stat-value" id="stat-users">0</div><div class="stat-label">کاربران</div></div>
+                <div class="stat-item"><div class="stat-value" id="stat-lessons">0</div><div class="stat-label">درس‌ها</div></div>
+                <div class="stat-item"><div class="stat-value" id="stat-transactions">0</div><div class="stat-label">تراکنش‌ها</div></div>
+                <div class="stat-item"><div class="stat-value" id="stat-progress">0</div><div class="stat-label">پیشرفت</div></div>
+            </div>
+            
+            <div class="test-item" id="test1">
+                <div class="test-header"><div class="test-name">۱. تراکنش اتمی خرید درس</div><div class="test-status status-pending" id="status1">در انتظار</div></div>
+                <div id="output1"></div>
+            </div>
+            <div class="test-item" id="test2">
+                <div class="test-header"><div class="test-name">۲. Rollback تراکنش ناموفق</div><div class="test-status status-pending" id="status2">در انتظار</div></div>
+                <div id="output2"></div>
+            </div>
+            <div class="test-item" id="test3">
+                <div class="test-header"><div class="test-name">۳. CRUD پیشرفت کاربر</div><div class="test-status status-pending" id="status3">در انتظار</div></div>
+                <div id="output3"></div>
+            </div>
+            <div class="test-item" id="test4">
+                <div class="test-header"><div class="test-name">۴. CRUD تراکنش‌های پرداخت</div><div class="test-status status-pending" id="status4">در انتظار</div></div>
+                <div id="output4"></div>
+            </div>
+            <div class="test-item" id="test5">
+                <div class="test-header"><div class="test-name">۵. تراکنش چند مرحله‌ای</div><div class="test-status status-pending" id="status5">در انتظار</div></div>
+                <div id="output5"></div>
+            </div>
+            
+            <button id="run-btn">▶️ اجرای تمام تست‌ها</button>
+            <button id="reset-btn" style="background:#546e7a;margin-top:10px">🔄 بازنشانی دیتابیس</button>
+            
+            <div class="console" id="console">
+                <div class="log">[سیستم] تست تراکنش‌های اتمی آماده است</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ========== دیتابیس Mock برای تراکنش‌ها ==========
+const TransactionDB = {
+    users: new Map(),
+    lessons: new Map(),
+    progress: new Map(),
+    transactions: new Map(),
+    nextId: { users: 1, lessons: 1, transactions: 1 },
+    
+    // ساخت کاربر جدید
+    createUser(email, name, coins = 100) {
+        const user = {
+            id: this.nextId.users++,
+            email,
+            name,
+            coins,
+            level: 1,
+            createdAt: new Date()
+        };
+        this.users.set(user.id, user);
+        this.log(`👤 کاربر "${name}" با ${coins} سکه ایجاد شد`);
+        this.updateStats();
+        return user;
+    },
+    
+    // ساخت درس جدید
+    createLesson(title, language, price = 50) {
+        const lesson = {
+            id: this.nextId.lessons++,
+            title,
+            language,
+            price,
+            difficulty: 'beginner',
+            createdAt: new Date()
+        };
+        this.lessons.set(lesson.id, lesson);
+        this.log(`📚 درس "${title}" با قیمت ${price} ایجاد شد`);
+        this.updateStats();
+        return lesson;
+    },
+    
+    // ساخت رکورد پیشرفت
+    createProgress(userId, lessonId, score = 0) {
+        const key = `${userId}_${lessonId}`;
+        const progress = {
+            user_id: userId,
+            lesson_id: lessonId,
+            score,
+            completed: score >= 80,
+            time_spent: 0,
+            updated_at: new Date()
+        };
+        this.progress.set(key, progress);
+        this.log(`📈 پیشرفت برای کاربر ${userId} و درس ${lessonId} ثبت شد`);
+        this.updateStats();
+        return progress;
+    },
+    
+    // ساخت تراکنش پرداخت
+    createTransaction(userId, lessonId, amount) {
+        const transaction = {
+            id: this.nextId.transactions++,
+            user_id: userId,
+            lesson_id: lessonId,
+            amount,
+            status: 'completed',
+            payment_method: 'zarinpal',
+            created_at: new Date()
+        };
+        this.transactions.set(transaction.id, transaction);
+        this.log(`💳 تراکنش ${transaction.id} با مبلغ ${amount} ثبت شد`);
+        this.updateStats();
+        return transaction;
+    },
+    
+    // ========== منطق تراکنش اتمی ==========
+    async purchaseLesson(userId, lessonId) {
+        this.log(`🔄 شروع تراکنش خرید: کاربر ${userId} → درس ${lessonId}`);
+        
+        // بررسی وجود کاربر و درس
+        const user = this.users.get(userId);
+        const lesson = this.lessons.get(lessonId);
+        
+        if (!user) throw new Error('کاربر یافت نشد');
+        if (!lesson) throw new Error('درس یافت نشد');
+        
+        // بررسی موجودی کافی
+        if (user.coins < lesson.price) {
+            throw new Error(`موجودی ناکافی! کاربر ${user.coins} سکه دارد، اما درس ${lesson.price} سکه قیمت دارد`);
+        }
+        
+        // ذخیره مقادیر اولیه برای امکان rollback
+        const originalCoins = user.coins;
+        
+        try {
+            // مرحله ۱: کسر هزینه از موجودی کاربر
+            user.coins -= lesson.price;
+            this.log(`💰 ${lesson.price} سکه از کاربر کسر شد. مانده: ${user.coins}`);
+            
+            // مرحله ۲: ثبت تراکنش پرداخت
+            const transaction = this.createTransaction(userId, lessonId, lesson.price);
+            
+            // مرحله ۳: ایجاد رکورد پیشرفت
+            const progress = this.createProgress(userId, lessonId, 0);
+            
+            this.log(`✅ تراکنش خرید با موفقیت تکمیل شد!`);
+            return {
+                success: true,
+                user,
+                lesson,
+                transaction,
+                progress
+            };
+            
+        } catch (error) {
+            // Rollback در صورت خطا
+            this.log(`❌ خطا در تراکنش: ${error.message}`);
+            user.coins = originalCoins; // بازگرداندن سکه‌ها
+            this.log(`↩️ Rollback انجام شد. موجودی کاربر به ${originalCoins} بازگشت`);
+            throw error;
+        }
+    },
+    
+    // تکمیل درس و افزایش امتیاز
+    completeLesson(userId, lessonId, score, timeSpent = 3600) {
+        const key = `${userId}_${lessonId}`;
+        let progress = this.progress.get(key);
+        
+        if (!progress) {
+            progress = this.createProgress(userId, lessonId, score);
+        } else {
+            progress.score = Math.max(progress.score, score);
+            progress.completed = progress.score >= 80;
+            progress.time_spent += timeSpent;
+            progress.updated_at = new Date();
+        }
+        
+        this.log(`🎯 درس تکمیل شد! امتیاز: ${progress.score} (${progress.completed ? 'تکمیل شده' : 'در حال یادگیری'})`);
+        return progress;
+    },
+    
+    // ========== ابزارهای کمکی ==========
+    log(message) {
+        console.log(`[TransactionDB] ${message}`);
+        const consoleEl = document.getElementById('console');
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log';
+        logEntry.textContent = `${message}`;
+        consoleEl.appendChild(logEntry);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+    },
+    
+    updateStats() {
+        document.getElementById('stat-users').textContent = this.users.size;
+        document.getElementById('stat-lessons').textContent = this.lessons.size;
+        document.getElementById('stat-transactions').textContent = this.transactions.size;
+        document.getElementById('stat-progress').textContent = this.progress.size;
+    },
+    
+    reset() {
+        this.users.clear();
+        this.lessons.clear();
+        this.progress.clear();
+        this.transactions.clear();
+        this.nextId = { users: 1, lessons: 1, transactions: 1 };
+        this.log("♻️ دیتابیس بازنشانی شد");
+        this.updateStats();
+    }
+};
+
+// ========== تست‌های تراکنش ==========
+const transactionTests = [
+    {
+        id: 'test1',
+        name: 'تراکنش اتمی خرید درس',
+        description: 'کسر موجودی + ثبت تراکنش + ایجاد پیشرفت',
+        run: async () => {
+            TransactionDB.reset();
+            
+            // ایجاد داده‌های تست
+            const user = TransactionDB.createUser('buyer@vakamova.com', 'خریدار تست', 200);
+            const lesson = TransactionDB.createLesson('گرامر پیشرفته', 'english', 150);
+            
+            // اجرای تراکنش خرید
+            const result = await TransactionDB.purchaseLesson(user.id, lesson.id);
+            
+            // بررسی نتایج
+            if (!result.success) throw new Error('تراکنش موفق نبود');
+            if (user.coins !== 50) throw new Error(`موجودی کاربر باید 50 باشد، اما ${user.coins} است`);
+            if (!result.transaction) throw new Error('تراکنش ثبت نشد');
+            if (!result.progress) throw new Error('پیشرفت ایجاد نشد');
+            
+            return `✅ خرید موفق! ${user.coins} سکه باقی مانده.`;
+        }
+    },
+    {
+        id: 'test2',
+        name: 'Rollback تراکنش ناموفق',
+        description: 'بازگشت خودکار در صورت عدم موجودی کافی',
+        run: async () => {
+            TransactionDB.reset();
+            
+            const user = TransactionDB.createUser('poor@test.com', 'کاربر کم موجودی', 50);
+            const lesson = TransactionDB.createLesson('درس گران', 'french', 100);
+            
+            const initialCoins = user.coins;
+            
+            try {
+                await TransactionDB.purchaseLesson(user.id, lesson.id);
+                throw new Error('باید خطای "موجودی ناکافی" می‌داد!');
+            } catch (error) {
+                if (!error.message.includes('موجودی ناکافی')) {
+                    throw new Error(`خطای اشتباه: ${error.message}`);
+                }
+            }
+            
+            // بررسی rollback
+            if (user.coins !== initialCoins) {
+                throw new Error(`Rollback انجام نشد! موجودی باید ${initialCoins} باشد، اما ${user.coins} است`);
+            }
+            
+            return `✅ Rollback موفق! موجودی کاربر بدون تغییر ماند (${user.coins} سکه)`;
+        }
+    },
+    {
+        id: 'test3',
+        name: 'CRUD پیشرفت کاربر',
+        description: 'مدیریت پیشرفت کاربر در درس‌های مختلف',
+        run: async () => {
+            TransactionDB.reset();
+            
+            const user = TransactionDB.createUser('progress@test.com', 'کاربر پرتلاش');
+            const lesson1 = TransactionDB.createLesson('واژگان', 'persian', 30);
+            const lesson2 = TransactionDB.createLesson('مکالمه', 'english', 40);
+            
+            // خرید دو درس
+            await TransactionDB.purchaseLesson(user.id, lesson1.id);
+            await TransactionDB.purchaseLesson(user.id, lesson2.id);
+            
+            // تکمیل درس‌ها با امتیازهای مختلف
+            const progress1 = TransactionDB.completeLesson(user.id, lesson1.id, 90);
+            const progress2 = TransactionDB.completeLesson(user.id, lesson2.id, 70);
+            
+            // بررسی نتایج
+            if (!progress1.completed) throw new Error('درس اول باید تکمیل شده باشد');
+            if (progress2.completed) throw new Error('درس دوم نباید تکمیل شده باشد (امتیاز 70)');
+            if (progress1.score !== 90) throw new Error('امتیاز درس اول اشتباه است');
+            
+            return `✅ مدیریت پیشرفت موفق! ${progress1.completed ? 'تکمیل شده' : 'در حال یادگیری'}`;
+        }
+    },
+    {
+        id: 'test4',
+        name: 'CRUD تراکنش‌های پرداخت',
+        description: 'ثبت و مدیریت تراکنش‌های مالی',
+        run: async () => {
+            TransactionDB.reset();
+            
+            const user = TransactionDB.createUser('payer@test.com', 'پرداخت‌کننده');
+            const lesson = TransactionDB.createLesson('آموزش حرفه‌ای', 'german', 75);
+            
+            // ایجاد تراکنش دستی
+            const transaction = TransactionDB.createTransaction(user.id, lesson.id, 75);
+            
+            // بررسی تراکنش
+            if (transaction.status !== 'completed') throw new Error('وضعیت تراکنش باید completed باشد');
+            if (transaction.amount !== 75) throw new Error('مبلغ تراکنش اشتباه است');
+            if (!transaction.created_at) throw new Error('تاریخ تراکنش ثبت نشد');
+            
+            // شمارش تراکنش‌ها
+            const transactionCount = TransactionDB.transactions.size;
+            
+            return `✅ تراکنش ${transaction.id} با موفقیت ثبت شد (مجموع: ${transactionCount} تراکنش)`;
+        }
+    },
+    {
+        id: 'test5',
+        name: 'تراکنش چند مرحله‌ای',
+        description: 'خرید چند درس + تکمیل + بررسی موجودی نهایی',
+        run: async () => {
+            TransactionDB.reset();
+            
+            const user = TransactionDB.createUser('multi@test.com', 'کاربر چندخرید', 300);
+            const lessons = [
+                TransactionDB.createLesson('مقدماتی', 'english', 50),
+                TransactionDB.createLesson('متوسط', 'english', 75),
+                TransactionDB.createLesson('پیشرفته', 'english', 100)
+            ];
+            
+            const initialCoins = user.coins;
+            let totalSpent = 0;
+            
+            // خرید همه درس‌ها
+            for (const lesson of lessons) {
+                await TransactionDB.purchaseLesson(user.id, lesson.id);
+                totalSpent += lesson.price;
+            }
+            
+            // تکمیل درس‌ها
+            TransactionDB.completeLesson(user.id, lessons[0].id, 95);
+            TransactionDB.completeLesson(user.id, lessons[1].id, 85);
+            TransactionDB.completeLesson(user.id, lessons[2].id, 60);
+            
+            // بررسی نتایج نهایی
+            const expectedCoins = initialCoins - totalSpent;
+            if (user.coins !== expectedCoins) {
+                throw new Error(`موجودی نهایی اشتباه! باید ${expectedCoins} باشد، اما ${user.coins} است`);
+            }
+            
+            const progressCount = TransactionDB.progress.size;
+            if (progressCount !== 3) throw new Error(`باید 3 رکورد پیشرفت باشد، اما ${progressCount} است`);
+            
+            return `✅ ${lessons.length} خرید با موفقیت انجام شد! ${user.coins} سکه باقی مانده.`;
+        }
+    }
+];
+
+// ========== اجرای تست‌ها ==========
+async function runAllTransactionTests() {
+    const btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ در حال اجرای تست‌های تراکنش...';
+    
+    let passed = 0;
+    
+    for (let i = 0; i < transactionTests.length; i++) {
+        const test = transactionTests[i];
+        const testEl = document.getElementById(test.id);
+        const statusEl = document.getElementById(`status${i+1}`);
+        const outputEl = document.getElementById(`output${i+1}`);
+        
+        // تغییر وضعیت به در حال اجرا
+        testEl.className = 'test-item running';
+        statusEl.textContent = 'در حال اجرا';
+        statusEl.className = 'test-status status-running';
+        outputEl.innerHTML = '<span style="color:#666">شروع تراکنش...</span>';
+        
+        try {
+            const result = await test.run();
+            
+            // تست موفق
+            testEl.className = 'test-item passed';
+            statusEl.textContent = 'موفق';
+            statusEl.className = 'test-status status-passed';
+            outputEl.innerHTML = `<div style="color:#2e7d32">${result}</div>`;
+            passed++;
+            
+        } catch (error) {
+            // تست ناموفق
+            testEl.className = 'test-item failed';
+            statusEl.textContent = 'ناموفق';
+            statusEl.className = 'test-status status-failed';
+            outputEl.innerHTML = `<div style="color:#c62828">❌ ${error.message}</div>`;
+        }
+        
+        // تاخیر برای نمایش بهتر
+        await new Promise(resolve => setTimeout(resolve, 600));
+    }
+    
+    btn.disabled = false;
+    btn.textContent = `🔄 اجرای مجدد (${passed}/${transactionTests.length} موفق)`;
+    
+    // نمایش نتیجه نهایی
+    TransactionDB.log(`نتایج تست تراکنش: ${passed} از ${transactionTests.length} تست موفق بودند`);
+    if (passed === transactionTests.length) {
+        TransactionDB.log("🎉 همه تست‌های تراکنش با موفقیت پشت سر گذاشته شدند!");
+    }
+}
+
+// ========== راه‌اندازی ==========
+document.addEventListener('DOMContentLoaded', () => {
+    // اتصال دکمه‌ها
+    document.getElementById('run-btn').addEventListener('click', runAllTransactionTests);
+    document.getElementById('reset-btn').addEventListener('click', () => {
+        TransactionDB.reset();
+        // بازنشانی وضعیت تست‌ها
+        for (let i = 1; i <= 5; i++) {
+            const testEl = document.getElementById(`test${i}`);
+            const statusEl = document.getElementById(`status${i}`);
+            const outputEl = document.getElementById(`output${i}`);
+            
+            testEl.className = 'test-item';
+            statusEl.textContent = 'در انتظار';
+            statusEl.className = 'test-status status-pending';
+            outputEl.innerHTML = '';
+        }
+        document.getElementById('run-btn').textContent = '▶️ اجرای تمام تست‌ها';
+    });
+    
+    TransactionDB.log("سیستم تست تراکنش‌های اتمی آماده است.");
+    TransactionDB.log("روی دکمه 'اجرای تمام تست‌ها' کلیک کنید.");
+    TransactionDB.updateStats();
+});
+</script>
+</body>
+</html>
