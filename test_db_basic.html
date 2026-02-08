@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست پایه دیتابیس - Vakamova</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:tahoma;background:#1a237e;color:#333;padding:20px}.container{max-width:800px;margin:auto;background:#fff;border-radius:10px;overflow:hidden}header{background:#283593;color:#fff;padding:20px;text-align:center}h1{font-size:1.5rem}.test-section{padding:20px}.test-item{background:#f5f5f5;border-radius:8px;padding:15px;margin-bottom:15px;border-right:5px solid #7986cb}.passed{border-right-color:#4caf50;background:#e8f5e9}.failed{border-right-color:#f44336;background:#ffebee}.running{border-right-color:#ff9800;background:#fff3e0}.test-header{display:flex;justify-content:space-between;margin-bottom:10px}.test-name{font-weight:bold}.test-status{padding:3px 10px;border-radius:12px;font-size:.8rem}.status-pending{background:#fff9c4;color:#f57c00}.status-running{background:#bbdefb;color:#1565c0}.status-passed{background:#c8e6c9;color:#2e7d32}.status-failed{background:#ffcdd2;color:#c62828}button{background:#283593;color:#fff;border:none;padding:12px 25px;border-radius:8px;font-size:1rem;cursor:pointer;width:100%;margin-top:15px}button:hover{background:#1a237e}.console{background:#263238;color:#80cbc4;padding:15px;margin-top:20px;border-radius:8px;font-family:monospace;font-size:.9rem;max-height:200px;overflow-y:auto}.log{padding:5px 0;border-bottom:1px solid #37474f}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header><h1>🗃️ تست پایه دیتابیس - CRUD + Migration</h1></header>
+        <div class="test-section">
+            <div class="test-item" id="test1">
+                <div class="test-header"><div class="test-name">۱. ساخت دیتابیس اولیه</div><div class="test-status status-pending" id="status1">در انتظار</div></div>
+                <div id="output1"></div>
+            </div>
+            <div class="test-item" id="test2">
+                <div class="test-header"><div class="test-name">۲. CRUD کاربران</div><div class="test-status status-pending" id="status2">در انتظار</div></div>
+                <div id="output2"></div>
+            </div>
+            <div class="test-item" id="test3">
+                <div class="test-header"><div class="test-name">۳. CRUD درس‌ها</div><div class="test-status status-pending" id="status3">در انتظار</div></div>
+                <div id="output3"></div>
+            </div>
+            <div class="test-item" id="test4">
+                <div class="test-header"><div class="test-name">۴. Migration v1 → v2</div><div class="test-status status-pending" id="status4">در انتظار</div></div>
+                <div id="output4"></div>
+            </div>
+            <div class="test-item" id="test5">
+                <div class="test-header"><div class="test-name">۵. Migration v2 → v3</div><div class="test-status status-pending" id="status5">در انتظار</div></div>
+                <div id="output5"></div>
+            </div>
+            <button id="run-btn">▶️ اجرای تمام تست‌ها</button>
+            <div class="console" id="console">
+                <div class="log">[سیستم] تست پایه دیتابیس آماده است</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ========== دیتابیس Mock ساده ==========
+const DB = {
+    users: new Map(),
+    lessons: new Map(),
+    version: 1,
+    nextUserId: 1,
+    nextLessonId: 1,
+    
+    createUser(email, name) {
+        const user = {
+            id: this.nextUserId++,
+            email,
+            name,
+            level: 1,
+            coins: 100,
+            createdAt: new Date()
+        };
+        this.users.set(user.id, user);
+        this.log(`کاربر "${name}" ایجاد شد`);
+        return user;
+    },
+    
+    createLesson(title, language) {
+        const lesson = {
+            id: this.nextLessonId++,
+            title,
+            language,
+            difficulty: 'beginner',
+            price: 50,
+            createdAt: new Date()
+        };
+        this.lessons.set(lesson.id, lesson);
+        this.log(`درس "${title}" ایجاد شد`);
+        return lesson;
+    },
+    
+    getUser(id) {
+        return this.users.get(id);
+    },
+    
+    getLesson(id) {
+        return this.lessons.get(id);
+    },
+    
+    migrateToVersion(version) {
+        this.log(`Migration از v${this.version} به v${version}`);
+        
+        if(version === 2 && this.version === 1) {
+            // اضافه کردن فیلد level به همه کاربران
+            for(let user of this.users.values()) {
+                user.level = user.level || 1;
+            }
+            this.version = 2;
+            this.log("Migration به v2 موفق - فیلد level اضافه شد");
+        }
+        
+        if(version === 3 && this.version <= 2) {
+            // اضافه کردن فیلد coins به کاربران
+            for(let user of this.users.values()) {
+                user.coins = user.coins || 100;
+            }
+            // اضافه کردن فیلد price به درس‌ها
+            for(let lesson of this.lessons.values()) {
+                lesson.price = lesson.price || 50;
+            }
+            this.version = 3;
+            this.log("Migration به v3 موفق - فیلدهای coins/price اضافه شدند");
+        }
+        
+        return true;
+    },
+    
+    log(message) {
+        console.log(`[DB] ${message}`);
+        const consoleEl = document.getElementById('console');
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log';
+        logEntry.textContent = `[دیتابیس] ${message}`;
+        consoleEl.appendChild(logEntry);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+    },
+    
+    clear() {
+        this.users.clear();
+        this.lessons.clear();
+        this.nextUserId = 1;
+        this.nextLessonId = 1;
+        this.version = 1;
+        this.log("دیتابیس پاک شد");
+    }
+};
+
+// ========== مدیریت تست‌ها ==========
+const tests = [
+    {
+        id: 'test1',
+        name: 'ساخت دیتابیس اولیه',
+        run: async () => {
+            DB.clear();
+            if(DB.version !== 1) throw new Error('نسخه اولیه باید ۱ باشد');
+            if(DB.users.size !== 0) throw new Error('کاربری نباید وجود داشته باشد');
+            return '✅ دیتابیس با موفقیت ساخته شد';
+        }
+    },
+    {
+        id: 'test2',
+        name: 'CRUD کاربران',
+        run: async () => {
+            // Create
+            const user = DB.createUser('test@vakamova.com', 'کاربر تست');
+            if(!user.id) throw new Error('کاربر ایجاد نشد');
+            
+            // Read
+            const fetchedUser = DB.getUser(user.id);
+            if(!fetchedUser) throw new Error('خواندن کاربر ناموفق');
+            
+            // Update
+            fetchedUser.level = 2;
+            if(fetchedUser.level !== 2) throw new Error('آپدیت کاربر ناموفق');
+            
+            return `✅ کاربر "${user.name}" با موفقیت مدیریت شد`;
+        }
+    },
+    {
+        id: 'test3',
+        name: 'CRUD درس‌ها',
+        run: async () => {
+            const lesson = DB.createLesson('مکالمه انگلیسی', 'english');
+            if(!lesson.id) throw new Error('درس ایجاد نشد');
+            
+            const fetchedLesson = DB.getLesson(lesson.id);
+            if(!fetchedLesson) throw new Error('خواندن درس ناموفق');
+            
+            if(fetchedLesson.price !== 50) throw new Error('قیمت درس اشتباه است');
+            
+            return `✅ درس "${lesson.title}" با موفقیت مدیریت شد`;
+        }
+    },
+    {
+        id: 'test4',
+        name: 'Migration v1 → v2',
+        run: async () => {
+            // ایجاد کاربر قبل از migration
+            const user = DB.createUser('migrate@test.com', 'کاربر Migration');
+            
+            // اجرای migration
+            const result = DB.migrateToVersion(2);
+            if(!result) throw new Error('Migration ناموفق');
+            if(DB.version !== 2) throw new Error('نسخه باید ۲ باشد');
+            
+            // بررسی فیلد جدید
+            const migratedUser = DB.getUser(user.id);
+            if(migratedUser.level === undefined) throw new Error('فیلد level اضافه نشد');
+            
+            return '✅ Migration به v2 با موفقیت انجام شد';
+        }
+    },
+    {
+        id: 'test5',
+        name: 'Migration v2 → v3',
+        run: async () => {
+            // اطمینان از نسخه ۲
+            DB.version = 2;
+            
+            // اجرای migration
+            const result = DB.migrateToVersion(3);
+            if(!result) throw new Error('Migration ناموفق');
+            if(DB.version !== 3) throw new Error('نسخه باید ۳ باشد');
+            
+            // بررسی فیلدهای جدید
+            for(let user of DB.users.values()) {
+                if(user.coins === undefined) throw new Error('فیلد coins اضافه نشد');
+            }
+            for(let lesson of DB.lessons.values()) {
+                if(lesson.price === undefined) throw new Error('فیلد price اضافه نشد');
+            }
+            
+            return '✅ Migration به v3 با موفقیت انجام شد';
+        }
+    }
+];
+
+// ========== اجرای تست‌ها ==========
+async function runAllTests() {
+    const btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ در حال اجرای تست‌ها...';
+    
+    let passed = 0;
+    
+    for(let i = 0; i < tests.length; i++) {
+        const test = tests[i];
+        const testEl = document.getElementById(test.id);
+        const statusEl = document.getElementById(`status${i+1}`);
+        const outputEl = document.getElementById(`output${i+1}`);
+        
+        // تغییر وضعیت به در حال اجرا
+        testEl.className = 'test-item running';
+        statusEl.textContent = 'در حال اجرا';
+        statusEl.className = 'test-status status-running';
+        outputEl.innerHTML = '<span style="color:#666">در حال اجرا...</span>';
+        
+        try {
+            const result = await test.run();
+            
+            // تست موفق
+            testEl.className = 'test-item passed';
+            statusEl.textContent = 'موفق';
+            statusEl.className = 'test-status status-passed';
+            outputEl.innerHTML = `<div style="color:#2e7d32">${result}</div>`;
+            passed++;
+            
+        } catch(error) {
+            // تست ناموفق
+            testEl.className = 'test-item failed';
+            statusEl.textContent = 'ناموفق';
+            statusEl.className = 'test-status status-failed';
+            outputEl.innerHTML = `<div style="color:#c62828">❌ ${error.message}</div>`;
+        }
+        
+        // تاخیر برای نمایش بهتر
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    btn.disabled = false;
+    btn.textContent = `🔄 اجرای مجدد (${passed}/${tests.length} موفق)`;
+    
+    // نمایش نتیجه نهایی
+    DB.log(`نتایج تست: ${passed} از ${tests.length} تست موفق بودند`);
+    if(passed === tests.length) {
+        DB.log("🎉 همه تست‌های پایه با موفقیت پشت سر گذاشته شدند!");
+    }
+}
+
+// ========== راه‌اندازی ==========
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('run-btn').addEventListener('click', runAllTests);
+    DB.log("سیستم تست آماده است. روی دکمه 'اجرای تمام تست‌ها' کلیک کنید.");
+});
+</script>
+</body>
+  </html>
