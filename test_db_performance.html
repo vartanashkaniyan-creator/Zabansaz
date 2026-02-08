@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست Performance دیتابیس - Vakamova</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}body{font-family:tahoma;background:#004d40;color:#333;padding:20px}.container{max-width:900px;margin:auto;background:#fff;border-radius:10px;overflow:hidden}header{background:#00695c;color:#fff;padding:20px;text-align:center}h1{font-size:1.5rem}.test-section{padding:20px}.test-item{background:#f5f5f5;border-radius:8px;padding:15px;margin-bottom:15px;border-right:5px solid#00897b}.passed{border-right-color:#43a047;background:#e8f5e9}.failed{border-right-color:#e53935;background:#ffebee}.running{border-right-color:#fb8c00;background:#fff3e0}.test-header{display:flex;justify-content:space-between;margin-bottom:10px}.test-name{font-weight:bold}.test-status{padding:3px 10px;border-radius:12px;font-size:.8rem}.status-pending{background:#fff9c4;color:#f57c00}.status-running{background:#bbdefb;color:#1565c0}.status-passed{background:#c8e6c9;color:#2e7d32}.status-failed{background:#ffcdd2;color:#c62828}button{background:#00695c;color:#fff;border:none;padding:12px 25px;border-radius:8px;font-size:1rem;cursor:pointer;width:100%;margin-top:15px}button:hover{background:#004d40}.console{background:#263238;color:#80cbc4;padding:15px;margin-top:20px;border-radius:8px;font-family:monospace;font-size:.9rem;max-height:200px;overflow-y:auto}.log{padding:5px 0;border-bottom:1px solid #37474f}.performance-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:15px 0}.perf-item{background:#e0f2f1;padding:10px;border-radius:6px;text-align:center}.perf-value{font-size:1.1rem;font-weight:bold;color:#00695c}.perf-label{font-size:.8rem;color:#546e7a}.progress-container{margin:15px 0}.progress-bar{width:100%;height:10px;background:#e0e0e0;border-radius:5px;overflow:hidden}.progress-fill{height:100%;background:#26a69a;width:0%;transition:width .3s ease}.results-table{width:100%;border-collapse:collapse;margin-top:20px}th,td{padding:10px;text-align:center;border:1px solid #e0e0e0}th{background:#e0f2f1;color:#00695c}tr:nth-child(even){background:#f9f9f9}.btn-group{display:flex;gap:10px;margin-top:15px}.btn-group button{flex:1}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header><h1>🚀 تست Performance دیتابیس - Stress & Benchmark</h1></header>
+        <div class="test-section">
+            <div class="progress-container">
+                <div class="progress-bar"><div class="progress-fill" id="global-progress"></div></div>
+                <div style="text-align:center;margin-top:5px;font-size:.9rem" id="progress-text">آماده اجرا</div>
+            </div>
+            
+            <div class="performance-stats">
+                <div class="perf-item"><div class="perf-value" id="stat-time">0ms</div><div class="perf-label">کل زمان</div></div>
+                <div class="perf-item"><div class="perf-value" id="stat-ops">0</div><div class="perf-label">عملیات/ثانیه</div></div>
+                <div class="perf-item"><div class="perf-value" id="stat-memory">-</div><div class="perf-label">مصرف حافظه</div></div>
+                <div class="perf-item"><div class="perf-value" id="stat-success">0%</div><div class="perf-label">موفقیت</div></div>
+            </div>
+            
+            <div class="test-item" id="test1">
+                <div class="test-header"><div class="test-name">۱. درج انبوه ۱۰۰ کاربر</div><div class="test-status status-pending" id="status1">در انتظار</div></div>
+                <div id="output1"></div>
+            </div>
+            <div class="test-item" id="test2">
+                <div class="test-header"><div class="test-name">۲. کوئری JOIN پیچیده (۳ جدول)</div><div class="test-status status-pending" id="status2">در انتظار</div></div>
+                <div id="output2"></div>
+            </div>
+            <div class="test-item" id="test3">
+                <div class="test-header"><div class="test-name">۳. فیلتر و جستجوی پیشرفته</div><div class="test-status status-pending" id="status3">در انتظار</div></div>
+                <div id="output3"></div>
+            </div>
+            <div class="test-item" id="test4">
+                <div class="test-header"><div class="test-name">۴. بنچمارک عملیات CRUD</div><div class="test-status status-pending" id="status4">در انتظار</div></div>
+                <div id="output4"></div>
+            </div>
+            <div class="test-item" id="test5">
+                <div class="test-header"><div class="test-name">۵. تست Stress همزمان</div><div class="test-status status-pending" id="status5">در انتظار</div></div>
+                <div id="output5"></div>
+            </div>
+            
+            <table class="results-table" id="results-table">
+                <thead><tr><th>تست</th><th>زمان (ms)</th><th>رکوردها</th><th>عملیات/ثانیه</th><th>وضعیت</th></tr></thead>
+                <tbody id="results-body"></tbody>
+            </table>
+            
+            <div class="btn-group">
+                <button id="run-btn">▶️ اجرای تست‌های Performance</button>
+                <button id="run-light-btn" style="background:#00838f">🔆 اجرای تست سبک</button>
+            </div>
+            <button id="reset-btn" style="background:#546e7a">🔄 پاک کردن همه داده‌ها</button>
+            
+            <div class="console" id="console">
+                <div class="log">[سیستم] تست Performance دیتابیس آماده است</div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ========== دیتابیس Performance-Optimized ==========
+const PerfDB = {
+    users: new Map(),
+    lessons: new Map(),
+    progress: new Map(),
+    transactions: new Map(),
+    nextId: { users: 1, lessons: 1, transactions: 1 },
+    
+    // ========== عملیات پایه سریع ==========
+    createUserFast(email, name) {
+        const user = {
+            id: this.nextId.users++,
+            email,
+            name,
+            coins: 100,
+            level: Math.floor(Math.random() * 5) + 1,
+            country: ['ایران', 'آمریکا', 'آلمان', 'ژاپن'][Math.floor(Math.random() * 4)],
+            joined_date: new Date(Date.now() - Math.random() * 31536000000) // تصادفی در یک سال گذشته
+        };
+        this.users.set(user.id, user);
+        return user;
+    },
+    
+    createLessonFast(title, language) {
+        const lesson = {
+            id: this.nextId.lessons++,
+            title,
+            language,
+            difficulty: ['beginner', 'intermediate', 'advanced'][Math.floor(Math.random() * 3)],
+            price: [50, 100, 150, 200][Math.floor(Math.random() * 4)],
+            rating: Math.floor(Math.random() * 50) / 10 + 3 // 3.0 تا 8.0
+        };
+        this.lessons.set(lesson.id, lesson);
+        return lesson;
+    },
+    
+    // ========== تست‌های Performance ==========
+    async bulkInsertUsers(count) {
+        const startTime = performance.now();
+        const startMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+        
+        for (let i = 0; i < count; i++) {
+            this.createUserFast(`user${i}@perf.com`, `کاربر ${i}`);
+        }
+        
+        const endTime = performance.now();
+        const duration = endTime - startTime;
+        const opsPerSecond = (count / (duration / 1000)).toFixed(1);
+        
+        return {
+            count,
+            duration: Math.round(duration),
+            opsPerSecond,
+            memoryUsed: performance.memory ? Math.round((performance.memory.usedJSHeapSize - startMemory) / 1024) : null
+        };
+    },
+    
+    async complexJoinQuery() {
+        const startTime = performance.now();
+        
+        // شبیه‌سازی JOIN سه جدول: users + lessons + progress
+        const results = [];
+        
+        // ایجاد داده‌های تست
+        const testUser = this.createUserFast('join@test.com', 'کاربر Join');
+        const testLessons = [];
+        for (let i = 0; i < 5; i++) {
+            testLessons.push(this.createLessonFast(`درس Join ${i}`, 'english'));
+        }
+        
+        // ایجاد پیشرفت‌ها
+        for (const lesson of testLessons) {
+            const progressKey = `${testUser.id}_${lesson.id}`;
+            this.progress.set(progressKey, {
+                user_id: testUser.id,
+                lesson_id: lesson.id,
+                score: Math.floor(Math.random() * 100),
+                completed: false,
+                time_spent: Math.floor(Math.random() * 7200)
+            });
+            
+            // ایجاد تراکنش
+            const transactionId = this.nextId.transactions++;
+            this.transactions.set(transactionId, {
+                id: transactionId,
+                user_id: testUser.id,
+                lesson_id: lesson.id,
+                amount: lesson.price,
+                status: 'completed',
+                created_at: new Date()
+            });
+        }
+        
+        // اجرای کوئری JOIN (شبیه‌سازی شده)
+        let matchedResults = 0;
+        for (const [key, progress] of this.progress) {
+            const user = this.users.get(progress.user_id);
+            const lesson = this.lessons.get(progress.lesson_id);
+            
+            if (user && lesson) {
+                // یافتن تراکنش مرتبط
+                let transaction = null;
+                for (const [tId, t] of this.transactions) {
+                    if (t.user_id === user.id && t.lesson_id === lesson.id) {
+                        transaction = t;
+                        break;
+                    }
+                }
+                
+                if (transaction) {
+                    results.push({
+                        userName: user.name,
+                        lessonTitle: lesson.title,
+                        score: progress.score,
+                        price: lesson.price,
+                        transactionId: transaction.id
+                    });
+                    matchedResults++;
+                }
+            }
+        }
+        
+        const duration = performance.now() - startTime;
+        return {
+            results,
+            duration: Math.round(duration),
+            matchedCount: matchedResults,
+            querySpeed: matchedResults > 0 ? Math.round(duration / matchedResults) : 0
+        };
+    },
+    
+    async advancedFiltering() {
+        const startTime = performance.now();
+        
+        // چندین نوع فیلتر مختلف
+        const filters = [
+            { name: 'کاربران سطح ۳+', condition: u => u.level >= 3 },
+            { name: 'درس‌های قیمت بالا', condition: l => l.price > 100 },
+            { name: 'کاربران ایرانی', condition: u => u.country === 'ایران' },
+            { name: 'درس‌های امتیاز بالا', condition: l => l.rating > 7.0 }
+        ];
+        
+        const filterResults = {};
+        
+        // اعمال فیلترها
+        for (const filter of filters) {
+            const startFilter = performance.now();
+            let count = 0;
+            
+            if (filter.name.includes('کاربر')) {
+                for (const user of this.users.values()) {
+                    if (filter.condition(user)) count++;
+                }
+            } else {
+                for (const lesson of this.lessons.values()) {
+                    if (filter.condition(lesson)) count++;
+                }
+            }
+            
+            const filterTime = performance.now() - startFilter;
+            filterResults[filter.name] = {
+                count,
+                time: Math.round(filterTime),
+                speed: count > 0 ? Math.round(filterTime / count * 100) / 100 : 0
+            };
+        }
+        
+        const totalDuration = performance.now() - startTime;
+        return {
+            filters: filterResults,
+            totalDuration: Math.round(totalDuration),
+            totalItems: this.users.size + this.lessons.size
+        };
+    },
+    
+    async benchmarkCRUD() {
+        const benchmarks = {};
+        const iterations = 100;
+        
+        // ۱. بنچمارک Create
+        let createTimes = [];
+        for (let i = 0; i < iterations; i++) {
+            const start = performance.now();
+            this.createUserFast(`bench${i}@test.com`, `بنچ ${i}`);
+            createTimes.push(performance.now() - start);
+        }
+        benchmarks.create = {
+            avg: Math.round(createTimes.reduce((a, b) => a + b) / iterations * 1000) / 1000,
+            min: Math.round(Math.min(...createTimes) * 1000) / 1000,
+            max: Math.round(Math.max(...createTimes) * 1000) / 1000
+        };
+        
+        // ۲. بنچمارک Read
+        let readTimes = [];
+        const userIds = Array.from(this.users.keys()).slice(0, iterations);
+        for (const id of userIds) {
+            const start = performance.now();
+            this.users.get(id);
+            readTimes.push(performance.now() - start);
+        }
+        benchmarks.read = {
+            avg: Math.round(readTimes.reduce((a, b) => a + b) / iterations * 1000) / 1000,
+            min: Math.round(Math.min(...readTimes) * 1000) / 1000,
+            max: Math.round(Math.max(...readTimes) * 1000) / 1000
+        };
+        
+        // ۳. بنچمارک Update
+        let updateTimes = [];
+        for (const id of userIds.slice(0, 50)) {
+            const user = this.users.get(id);
+            if (user) {
+                const start = performance.now();
+                user.coins += 10;
+                updateTimes.push(performance.now() - start);
+            }
+        }
+        benchmarks.update = {
+            avg: Math.round(updateTimes.reduce((a, b) => a + b) / updateTimes.length * 1000) / 1000,
+            min: Math.round(Math.min(...updateTimes) * 1000) / 1000,
+            max: Math.round(Math.max(...updateTimes) * 1000) / 1000
+        };
+        
+        return benchmarks;
+    },
+    
+    async stressTestConcurrent() {
+        const startTime = performance.now();
+        const concurrentOperations = 20;
+        const promises = [];
+        
+        // عملیات‌های همزمان مختلف
+        for (let i = 0; i < concurrentOperations; i++) {
+            const promise = (async (index) => {
+                const opStart = performance.now();
+                
+                switch (index % 4) {
+                    case 0: // ایجاد کاربر
+                        this.createUserFast(`stress${index}@test.com`, `استرس ${index}`);
+                        break;
+                    case 1: // ایجاد درس
+                        this.createLessonFast(`درس استرس ${index}`, ['english', 'persian', 'french'][index % 3]);
+                        break;
+                    case 2: // خواندن تصادفی
+                        const userIds = Array.from(this.users.keys());
+                        if (userIds.length > 0) {
+                            const randomId = userIds[Math.floor(Math.random() * userIds.length)];
+                            this.users.get(randomId);
+                        }
+                        break;
+                    case 3: // فیلتر کردن
+                        let count = 0;
+                        for (const user of this.users.values()) {
+                            if (user.level > 2) count++;
+                        }
+                        break;
+                }
+                
+                return {
+                    index,
+                    duration: performance.now() - opStart,
+                    success: true
+                };
+            })(i);
+            
+            promises.push(promise);
+        }
+        
+        const results = await Promise.all(promises);
+        const totalDuration = performance.now() - startTime;
+        
+        const avgOpTime = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+        
+        return {
+            concurrentOperations,
+            totalDuration: Math.round(totalDuration),
+            avgOperationTime: Math.round(avgOpTime * 100) / 100,
+            opsPerSecond: Math.round((concurrentOperations / (totalDuration / 1000)) * 10) / 10,
+            successfulOps: results.filter(r => r.success).length
+        };
+    },
+    
+    // ========== ابزارهای کمکی ==========
+    log(message) {
+        console.log(`[PerfDB] ${message}`);
+        const consoleEl = document.getElementById('console');
+        const logEntry = document.createElement('div');
+        logEntry.className = 'log';
+        logEntry.textContent = `${message}`;
+        consoleEl.appendChild(logEntry);
+        consoleEl.scrollTop = consoleEl.scrollHeight;
+    },
+    
+    updateStats(result) {
+        if (result) {
+            document.getElementById('stat-time').textContent = `${result.totalTime || result.duration || 0}ms`;
+            if (result.opsPerSecond) {
+                document.getElementById('stat-ops').textContent = result.opsPerSecond;
+            }
+            if (result.memoryUsed) {
+                document.getElementById('stat-memory').textContent = `${result.memoryUsed}KB`;
+            }
+        }
+    },
+    
+    clear() {
+        this.users.clear();
+        this.lessons.clear();
+        this.progress.clear();
+        this.transactions.clear();
+        this.nextId = { users: 1, lessons: 1, transactions: 1 };
+        this.log("🧹 همه داده‌های Performance پاک شدند");
+        document.getElementById('results-body').innerHTML = '';
+        document.getElementById('global-progress').style.width = '0%';
+        document.getElementById('progress-text').textContent = 'آماده اجرا';
+        this.updateStats({ totalTime: 0 });
+    },
+    
+    addResultToTable(testName, time, records, ops, status) {
+        const tbody = document.getElementById('results-body');
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${testName}</td>
+            <td>${time}ms</td>
+            <td>${records}</td>
+            <td>${ops}</td>
+            <td style="color:${status === '✅' ? '#2e7d32' : '#c62828'}">${status}</td>
+        `;
+        tbody.appendChild(row);
+    }
+};
+
+// ========== تست‌های Performance ==========
+const performanceTests = [
+    {
+        id: 'test1',
+        name: 'درج انبوه ۱۰۰ کاربر',
+        description: 'ایجاد ۱۰۰ کاربر با داده‌های تصادفی',
+        run: async () => {
+            PerfDB.log("شروع درج انبوه ۱۰۰ کاربر...");
+            const result = await PerfDB.bulkInsertUsers(100);
+            
+            PerfDB.addResultToTable(
+                'درج انبوه',
+                result.duration,
+                result.count,
+                result.opsPerSecond,
+                '✅'
+            );
+            
+            return `✅ ${result.count} کاربر در ${result.duration}ms ایجاد شدند (${result.opsPerSecond} عملیات/ثانیه)`;
+        }
+    },
+    {
+        id: 'test2',
+        name: 'کوئری JOIN پیچیده',
+        description: 'اتصال ۳ جدول برای گزارش پیشرفت',
+        run: async () => {
+            PerfDB.log("شروع کوئری JOIN پیچیده...");
+            const result = await PerfDB.complexJoinQuery();
+            
+            PerfDB.addResultToTable(
+                'JOIN پیچیده',
+                result.duration,
+                result.matchedCount,
+                result.querySpeed,
+                '✅'
+            );
+            
+            return `✅ ${result.matchedCount} نتیجه در ${result.duration}ms یافت شد (${result.querySpeed}ms/رکورد)`;
+        }
+    },
+    {
+        id: 'test3',
+        name: 'فیلتر و جستجوی پیشرفته',
+        description: 'اعمال ۴ فیلتر مختلف بر روی داده‌ها',
+        run: async () => {
+            PerfDB.log("شروع فیلترهای پیشرفته...");
+            const result = await PerfDB.advancedFiltering();
+            
+            // نمایش بهترین و بدترین فیلتر
+            let fastestFilter = null;
+            let slowestFilter = null;
+            for (const [name, data] of Object.entries(result.filters)) {
+                if (!fastestFilter || data.time < fastestFilter.time) {
+                    fastestFilter = { name, ...data };
+                }
+                if (!slowestFilter || data.time > slowestFilter.time) {
+                    slowestFilter = { name, ...data };
+                }
+            }
+            
+            PerfDB.addResultToTable(
+                'فیلتر پیشرفته',
+                result.totalDuration,
+                result.totalItems,
+                Math.round(result.totalItems / (result.totalDuration / 1000)),
+                '✅'
+            );
+            
+            return `✅ ${Object.keys(result.filters).length} فیلتر در ${result.totalDuration}ms اجرا شدند<br>
+                   سریع‌ترین: ${fastestFilter.name} (${fastestFilter.time}ms)<br>
+                   کندترین: ${slowestFilter.name} (${slowestFilter.time}ms)`;
+        }
+    },
+    {
+        id: 'test4',
+        name: 'بنچمارک عملیات CRUD',
+        description: 'سنجش سرعت Create, Read, Update',
+        run: async () => {
+            PerfDB.log("شروع بنچمارک CRUD...");
+            const benchmarks = await PerfDB.benchmarkCRUD();
+            
+            // محاسبه میانگین کلی
+            const avgTimes = [
+                benchmarks.create.avg,
+                benchmarks.read.avg,
+                benchmarks.update.avg
+            ];
+            const overallAvg = avgTimes.reduce((a, b) => a + b) / avgTimes.length;
+            
+            PerfDB.addResultToTable(
+                'بنچمارک CRUD',
+                Math.round(overallAvg * 1000),
+                '100+',
+                Math.round(1 / overallAvg),
+                '✅'
+            );
+            
+            return `✅ بنچمارک تکمیل شد:<br>
+                   ایجاد: ${benchmarks.create.avg}ms<br>
+                   خواندن: ${benchmarks.read.avg}ms<br>
+                   به‌روزرسانی: ${benchmarks.update.avg}ms<br>
+                   میانگین کلی: ${overallAvg.toFixed(3)}ms`;
+        }
+    },
+    {
+        id: 'test5',
+        name: 'تست Stress همزمان',
+        description: '۲۰ عملیات همزمان برای تست بار',
+        run: async () => {
+            PerfDB.log("شروع تست Stress همزمان...");
+            const result = await PerfDB.stressTestConcurrent();
+            
+            PerfDB.addResultToTable(
+                'Stress Test',
+                result.totalDuration,
+                result.concurrentOperations,
+                result.opsPerSecond,
+                result.successfulOps === result.concurrentOperations ? '✅' : '⚠️'
+            );
+            
+            const successRate = Math.round((result.successfulOps / result.concurrentOperations) * 100);
+            return `✅ ${result.concurrentOperations} عملیات همزمان در ${result.totalDuration}ms<br>
+                   عملیات/ثانیه: ${result.opsPerSecond}<br>
+                   زمان متوسط هر عملیات: ${result.avgOperationTime}ms<br>
+                   نرخ موفقیت: ${successRate}%`;
+        }
+    }
+];
+
+// ========== اجرای تست‌ها ==========
+async function runPerformanceTests(lightMode = false) {
+    const runBtn = document.getElementById('run-btn');
+    const lightBtn = document.getElementById('run-light-btn');
+    
+    runBtn.disabled = true;
+    lightBtn.disabled = true;
+    runBtn.textContent = '⏳ در حال اجرای تست‌های Performance...';
+    
+    // پاک کردن نتایج قبلی
+    document.getElementById('results-body').innerHTML = '';
+    
+    const startTime = performance.now();
+    let passed = 0;
+    let totalDuration = 0;
+    
+    // اجرای تست‌ها
+    for (let i = 0; i < performanceTests.length; i++) {
+        const test = performanceTests[i];
+        
+        // در حالت سبک، فقط ۳ تست اول را اجرا کن
+        if (lightMode && i >= 3) {
+            document.getElementById(test.id).style.opacity = '0.5';
+            document.getElementById(`status${i+1}`).textContent = 'رد شده';
+            document.getElementById(`status${i+1}`).className = 'test-status status-pending';
+            continue;
+        }
+        
+        const testEl = document.getElementById(test.id);
+        const statusEl = document.getElementById(`status${i+1}`);
+        const outputEl = document.getElementById(`output${i+1}`);
+        
+        // به‌روزرسانی progress bar
+        const progress = Math.round(((i) / performanceTests.length) * 100);
+        document.getElementById('global-progress').style.width = `${progress}%`;
+        document.getElementById('progress-text').textContent = `در حال اجرای تست ${i+1} از ${performanceTests.length}`;
+        
+        // تغییر وضعیت به در حال اجرا
+        testEl.className = 'test-item running';
+        statusEl.textContent = 'در حال اجرا';
+        statusEl.className = 'test-status status-running';
+        outputEl.innerHTML = '<span style="color:#666">آماده‌سازی تست...</span>';
+        
+        try {
+            PerfDB.log(`شروع تست: ${test.name}`);
+            const testStart = performance.now();
+            
+            const result = await test.run();
+            const testDuration = performance.now() - testStart;
+            totalDuration += testDuration;
+            
+            // تست موفق
+            testEl.className = 'test-item passed';
+            statusEl.textContent = 'موفق';
+            statusEl.className = 'test-status status-passed';
+            outputEl.innerHTML = `<div style="color:#2e7d32">${result}</div>`;
+            passed++;
+            
+            PerfDB.log(`تست "${test.name}" موفق در ${Math.round(testDuration)}ms`);
+            
+        } catch (error) {
+            // تست ناموفق
+            testEl.className = 'test-item failed';
+            statusEl.textContent = 'ناموفق';
+            statusEl.className = 'test-status status-failed';
+            outputEl.innerHTML = `<div style="color:#c62828">❌ ${error.message}</div>`;
+            
+            PerfDB.log(`تست "${test.name}" ناموفق: ${error.message}`, 'error');
+        }
+        
+        // تاخیر کوتاه بین تست‌ها
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
+    // به‌روزرسانی نهایی progress bar
+    document.getElementById('global-progress').style.width = '100%';
+    
+    const totalTime = performance.now() - startTime;
+    const successRate = Math.round((passed / performanceTests.length) * 100);
+    
+    // به‌روزرسانی آمار کلی
+    PerfDB.updateStats({
+        totalTime: Math.round(totalTime),
+        opsPerSecond: Math.round((passed / (totalTime / 1000)) * 10) / 10
+    });
+    
+    document.getElementById('stat-success').textContent = `${successRate}%`;
+    document.getElementById('progress-text').textContent = `تکمیل شد: ${passed}/${performanceTests.length} موفق`;
+    
+    runBtn.disabled = false;
+    lightBtn.disabled = false;
+    runBtn.textContent = `🔄 اجرای مجدد (${successRate}% موفق)`;
+    lightBtn.textContent = '🔆 اجرای تست سبک';
+    
+    // نمایش نتیجه نهایی
+    PerfDB.log(`🎯 تست‌های Performance کامل شدند!`);
+    PerfDB.log(`⏱️ زمان کل: ${Math.round(totalTime)}ms`);
+    PerfDB.log(`📊 موفقیت: ${passed} از ${performanceTests.length} تست`);
+    PerfDB.log(`🚀 میانگین سرعت: ${Math.round((passed / (totalTime / 1000)) * 10) / 10} تست/ثانیه`);
+    
+    if (passed === performanceTests.length) {
+        PerfDB.log("✅ تمام تست‌های Performance با موفقیت پشت سر گذاشته شدند!");
+    }
+}
+
+// ========== راه‌اندازی ==========
+document.addEventListener('DOMContentLoaded', () => {
+    // اتصال دکمه‌ها
+    document.getElementById('run-btn').addEventListener('click', () => runPerformanceTests(false));
+    document.getElementById('run-light-btn').addEventListener('click', () => runPerformanceTests(true));
+    
+    document.getElementById('reset-btn').addEventListener('click', () => {
+        PerfDB.clear();
+        // بازنشانی وضعیت تست‌ها
+        for (let i = 1; i <= 5; i++) {
+            const testEl = document.getElementById(`test${i}`);
+            const statusEl = document.getElementById(`status${i}`);
+            const outputEl = document.getElementById(`output${i}`);
+            
+            testEl.className = 'test-item';
+            testEl.style.opacity = '1';
+            statusEl.textContent = 'در انتظار';
+            statusEl.className = 'test-status status-pending';
+            outputEl.innerHTML = '';
+        }
+        document.getElementById('run-btn').textContent = '▶️ اجرای تست‌های Performance';
+        document.getElementById('stat-success').textContent = '0%';
+    });
+    
+    PerfDB.log("🚀 سیستم تست Performance دیتابیس آماده است.");
+    PerfDB.log("برای تست کامل روی دکمه اول، برای تست سریع روی دکمه دوم کلیک کنید.");
+});
+</script>
+</body>
+</html>
